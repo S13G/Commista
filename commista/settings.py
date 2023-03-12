@@ -35,6 +35,7 @@ DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
 ]
@@ -49,6 +50,10 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "debug_toolbar",
 ]
+
+REST_FRAMEWORK = {
+    "NON_FIELD_ERRORS": "error"
+}
 
 INTERNAL_IPS = [
     "127.0.0.1",

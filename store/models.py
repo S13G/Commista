@@ -1,27 +1,21 @@
-from accounts.validators import validate_phone_number
-from autoslug import AutoSlugField
-from common.models import BaseModel
-from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
-from django.db.models import Avg
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-from django.utils.functional import cached_property
-from django.utils.translation import gettext_lazy as _
-from store.choices import (
-    PAYMENT_STATUS,
-    PAYMENT_PENDING,
-    NOTIFICATION_CHOICES,
-    CONDITION_CHOICES,
-    SHIPPING_STATUS_CHOICES,
-    SHIPPING_STATUS_PENDING,
-)
-from store.validators import validate_image_size
-
+import random
 import secrets
 import string
-import random
+
+from autoslug import AutoSlugField
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.db.models import Avg
+from django.utils import timezone
+from django.utils.functional import cached_property
+
+from accounts.validators import validate_phone_number
+from common.models import BaseModel
+from store.choices import (CONDITION_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
+                           SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
+from store.validators import validate_image_size
 
 # Create your models here.
 
@@ -60,10 +54,10 @@ class ItemLocation(BaseModel):
 class Product(BaseModel):
     title = models.CharField(max_length=255, unique=True)
     slug = AutoSlugField(
-        populate_from="title", unique=True, always_update=True, editable=False
+            populate_from="title", unique=True, always_update=True, editable=False
     )
     category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="products"
+            Category, on_delete=models.CASCADE, related_name="products"
     )
     description = models.TextField()
     style = models.CharField(max_length=255)
@@ -77,11 +71,11 @@ class Product(BaseModel):
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
     location = models.ForeignKey(
-        ItemLocation,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=False,
-        related_name="products",
+            ItemLocation,
+            on_delete=models.PROTECT,
+            null=True,
+            blank=False,
+            related_name="products",
     )
 
     def __str__(self):
@@ -94,9 +88,9 @@ class Product(BaseModel):
     def clean(self):
         super().clean()
         if (
-            self.flash_sale_start_date is not None
-            and self.flash_sale_end_date is not None
-            and self.flash_sale_end_date <= self.flash_sale_start_date
+                self.flash_sale_start_date is not None
+                and self.flash_sale_end_date is not None
+                and self.flash_sale_end_date <= self.flash_sale_start_date
         ):
             raise ValidationError("End date must be after start date.")
         elif self.flash_sale_start_date == self.flash_sale_end_date:
@@ -104,6 +98,7 @@ class Product(BaseModel):
 
     @property
     def discount_price(self):
+        discount = None
         if self.percentage_off > 0:
             discount = self.price - (self.price * self.percentage_off)
         return discount
@@ -111,10 +106,10 @@ class Product(BaseModel):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="images"
+            Product, on_delete=models.CASCADE, related_name="images"
     )
     image = models.ImageField(
-        upload_to="store/images", validators=[validate_image_size]
+            upload_to="store/images", validators=[validate_image_size]
     )
 
     def __str__(self):
@@ -130,16 +125,16 @@ class ProductImage(models.Model):
 
 class FavoriteProduct(BaseModel):
     customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="favorite_products"
+            Customer, on_delete=models.CASCADE, related_name="favorite_products"
     )
     product = models.ForeignKey(
-        Product, on_delete=models.PROTECT, related_name="customer_favorites"
+            Product, on_delete=models.PROTECT, related_name="customer_favorites"
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["customer", "product"], name="unique_customer_product"
+                    fields=["customer", "product"], name="unique_customer_product"
             )
         ]
 
@@ -149,7 +144,7 @@ class FavoriteProduct(BaseModel):
 
 class SliderImage(BaseModel):
     image = models.ImageField(
-        upload_to="slider_images/", validators=[validate_image_size]
+            upload_to="slider_images/", validators=[validate_image_size]
     )
 
     def image_url(self):
@@ -162,10 +157,10 @@ class SliderImage(BaseModel):
 
 class ProductReview(BaseModel):
     customer = models.ForeignKey(
-        Customer, on_delete=models.PROTECT, related_name="product_reviews"
+            Customer, on_delete=models.PROTECT, related_name="product_reviews"
     )
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="product_reviews"
+            Product, on_delete=models.CASCADE, related_name="product_reviews"
     )
     ratings = models.PositiveIntegerField(default=0, validators=[MaxValueValidator(5)])
     description = models.TextField()
@@ -176,10 +171,10 @@ class ProductReview(BaseModel):
 
 class ProductReviewImage(models.Model):
     product_review = models.ForeignKey(
-        ProductReview, on_delete=models.CASCADE, related_name="product_review_images"
+            ProductReview, on_delete=models.CASCADE, related_name="product_review_images"
     )
     image = models.ImageField(
-        upload_to="store/images", validators=[validate_image_size]
+            upload_to="store/images", validators=[validate_image_size]
     )
 
 
@@ -212,10 +207,10 @@ class Order(BaseModel):
     transaction_ref = models.CharField(max_length=10, unique=True, editable=False)
     placed_at = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(
-        max_length=1, choices=PAYMENT_STATUS, default=PAYMENT_PENDING
+            max_length=1, choices=PAYMENT_STATUS, default=PAYMENT_PENDING
     )
     shipping_status = models.CharField(
-        max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
+            max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
     )
 
     def __str__(self):
@@ -224,7 +219,7 @@ class Order(BaseModel):
     def save(self, *args, **kwargs):
         if not self.pk:
             self.transaction_ref = "".join(
-                random.choices(string.ascii_uppercase + string.digits, k=10)
+                    random.choices(string.ascii_uppercase + string.digits, k=10)
             )
         super().save(*args, **kwargs)
 
@@ -232,7 +227,7 @@ class Order(BaseModel):
 class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="items")
     product = models.ForeignKey(
-        Product, on_delete=models.PROTECT, related_name="orderitems"
+            Product, on_delete=models.PROTECT, related_name="orderitems"
     )
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
@@ -245,9 +240,11 @@ class OrderItem(BaseModel):
 
 
 class Cart(BaseModel):
+    coupon_code = models.CharField(max_length=8, unique=True, null=True)
+
     def total_price(self):
         total_price = sum(
-            item.product.price * item.product.quantity for item in self.items.all()
+                item.product.price * item.product.quantity for item in self.items.all()
         )
         # Check if a coupon is applied to the cart
         try:
@@ -267,7 +264,7 @@ class CartItem(BaseModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["cart", "product"], name="unique_cart_product"
+                    fields=["cart", "product"], name="unique_cart_product"
             )
         ]
 
@@ -285,7 +282,7 @@ class Country(BaseModel):
 
 class Address(BaseModel):
     customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="addresses"
+            Customer, on_delete=models.CASCADE, related_name="addresses"
     )
     country = models.ForeignKey(Country, on_delete=models.PROTECT)
     first_name = models.CharField(max_length=255)
@@ -298,4 +295,4 @@ class Address(BaseModel):
     phone_number = models.CharField(max_length=20, validators=[validate_phone_number])
 
     def __str__(self):
-        return f"{self.cutomer.full_name}"
+        return f"{self.customer.full_name}"
