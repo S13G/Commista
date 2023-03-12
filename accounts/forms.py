@@ -4,13 +4,13 @@ from accounts.models import User
 
 
 # ADMIN ACCOUNT CREATION
-class UserCreationForm(UserCreationForm):
+class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
-        fields = ("email",)
+        fields = ("email", "full_name")
 
 
-class UserChangeForm(UserChangeForm):
+class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = User
-        fields = ("email",)
+        fields = ("email", "full_name")

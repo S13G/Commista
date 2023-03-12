@@ -1,11 +1,14 @@
-from accounts.choices import GENDER_CHOICES
-from accounts.validators import validate_phone_number, validate_full_name
-from common.models import BaseModel
-from django.contrib.auth.models import AbstractUser
-from django.db import models
-from django.utils.translation import gettext_lazy as _
 from uuid import uuid4
 
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from accounts.choices import GENDER_CHOICES
+from accounts.validators import validate_full_name, validate_phone_number
+from common.models import BaseModel
 from .managers import CustomUserManager
 
 
@@ -44,8 +47,14 @@ class User(AbstractUser):
 
 
 class Otp(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp")
     code = models.PositiveIntegerField()
+    expired = models.BooleanField(default=False)
+    expiry_date = models.DateTimeField()
 
     def __str__(self):
         return f"{self.user.full_name} ----- {self.code}"
+
+    def save(self, *args, **kwargs):
+        self.expired = self.expiry_date < timezone.now()
+        super(Otp, self).save(*args, **kwargs)

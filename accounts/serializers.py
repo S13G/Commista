@@ -1,4 +1,3 @@
-from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from rest_framework import serializers
@@ -33,3 +32,26 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+
+class VerifySerializer(serializers.ModelSerializer):
+    code = serializers.CharField(max_length=4)
+
+    class Meta:
+        model = User
+        fields = ['email']
+
+    def validate(self, attrs):
+        email = attrs.get('email', '')
+        code = attrs.get('code', '')
+
+        # validate email
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise serializers.ValidationError("Invalid email format")
+
+        # validate code
+        if len(code) != 4:
+            raise ValidationError("Code must be 4 numbers")
+        return attrs
