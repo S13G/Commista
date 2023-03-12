@@ -1,12 +1,14 @@
-from django.shortcuts import get_object_or_404
+from django.contrib.auth import authenticate
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
+from accounts.auth import CustomHeaderAuthentication
 from accounts.emails import Util
 from accounts.models import User
-from accounts.serializers import RegisterSerializer, VerifySerializer
+from accounts.serializers import LoginSerializer, RegisterSerializer, VerifySerializer
 
 
 # Create your views here.
@@ -22,11 +24,10 @@ class RegisterView(GenericAPIView):
 
         data = serializer.data
         user = User.objects.get(email=data['email'])
-        token = RefreshToken.for_user(user)
-        data["token"] = token
 
         Util.email_activation(user)
-        return Response({"message": "Account created successfully", "data": data}, status=status.HTTP_201_CREATED)
+        return Response({"message": "Registered successfully. Check email for verification code", "data": data},
+                        status=status.HTTP_201_CREATED)
 
 
 class VerifyEmailView(GenericAPIView):
@@ -58,3 +59,22 @@ class VerifyEmailView(GenericAPIView):
             Util.email_verified(user)
         user.save()
         return Response({"message": "Account verified successfully"}, status=status.HTTP_200_OK)
+
+
+class LoginView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
+    authentication_classes = [CustomHeaderAuthentication]
+
+    def post(self, request, **kwargs):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.data["email"]
+        password = serializer.data["password"]
+        user = authenticate(request, email=email, password=password)
+        if not user:
+            return Response({"message": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.is_verified:
+            return Response({"message": "Email is not verified"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tokens = super().post(request)
+        return Response({"message": "Logged in successfully", "tokens": tokens.data}, status=status.HTTP_200_OK)

@@ -35,11 +35,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class VerifySerializer(serializers.ModelSerializer):
-    code = serializers.CharField(max_length=4)
+    code = serializers.IntegerField()
 
     class Meta:
         model = User
-        fields = ['email']
+        fields = ['email', 'code']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -54,4 +54,23 @@ class VerifySerializer(serializers.ModelSerializer):
         # validate code
         if len(code) != 4:
             raise ValidationError("Code must be 4 numbers")
+        return attrs
+
+
+class LoginSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(max_length=50, min_length=6, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+
+    def validate(self, attrs):
+        email = attrs.get('email', '')
+
+        # validate email
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise serializers.ValidationError("Invalid email format")
+
         return attrs

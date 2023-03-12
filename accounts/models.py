@@ -50,7 +50,7 @@ class Otp(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp")
     code = models.PositiveIntegerField()
     expired = models.BooleanField(default=False)
-    expiry_date = models.DateTimeField()
+    expiry_date = models.DateTimeField(null=True)
 
     def __str__(self):
         return f"{self.user.full_name} ----- {self.code}"

@@ -47,15 +47,33 @@ LOCAL_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "drf_spectacular",
     "rest_framework",
+    "rest_framework_simplejwt",
     "debug_toolbar",
 ]
+
+# AUTHENTICATION_BACKENDS = [
+#     'accounts.auth.EmailBackend',
+#     'django.contrib.auth.backends.ModelBackend',
+# ]
 
 REST_FRAMEWORK = {
     "NON_FIELD_ERRORS": "error",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-    )
+    ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "COMMISTA API",
+    "DESCRIPTION": "Commista: A e-commerce API",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 INTERNAL_IPS = [
@@ -171,7 +189,9 @@ STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-EMAIL_USE_TLS = config("EMAIL_USE_TLS")
+# EMAIL_USE_TLS = config("EMAIL_USE_TLS")
+
+EMAIL_USE_SSL = config("EMAIL_USE_SSL")
 
 EMAIL_HOST = config("EMAIL_HOST")
 
@@ -179,6 +199,6 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 
-EMAIL_PORT = 587
+EMAIL_PORT = 465
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
