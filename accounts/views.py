@@ -20,10 +20,9 @@ class RegisterView(GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
 
         data = serializer.data
-        user = User.objects.get(email=data['email'])
 
         Util.email_activation(user)
         return Response({"message": "Registered successfully. Check email for verification code", "data": data},

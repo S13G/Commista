@@ -53,11 +53,6 @@ THIRD_PARTY_APPS = [
     "debug_toolbar",
 ]
 
-# AUTHENTICATION_BACKENDS = [
-#     'accounts.auth.EmailBackend',
-#     'django.contrib.auth.backends.ModelBackend',
-# ]
-
 REST_FRAMEWORK = {
     "NON_FIELD_ERRORS": "error",
     "DEFAULT_AUTHENTICATION_CLASSES": (
