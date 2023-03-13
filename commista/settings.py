@@ -54,7 +54,7 @@ THIRD_PARTY_APPS = [
 ]
 
 REST_FRAMEWORK = {
-    "NON_FIELD_ERRORS": "error",
+    'EXCEPTION_HANDLER': 'accounts.exceptions.custom_exception_handler',
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),

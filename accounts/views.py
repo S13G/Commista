@@ -14,6 +14,26 @@ from accounts.serializers import LoginSerializer, RegisterSerializer, VerifySeri
 # Create your views here.
 
 
+class LoginView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
+    authentication_classes = [CustomHeaderAuthentication]
+
+    def post(self, request, **kwargs):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # use validated_data when you want to so any operation with the data like authenticate
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
+        user = authenticate(request, email=email, password=password)
+        if not user:
+            return Response({"message": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.is_verified:
+            return Response({"message": "Email is not verified"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tokens = super().post(request)
+        return Response({"message": "Logged in successfully", "tokens": tokens.data}, status=status.HTTP_200_OK)
+
+
 class RegisterView(GenericAPIView):
     serializer_class = RegisterSerializer
 
@@ -35,45 +55,31 @@ class VerifyEmailView(GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.data["email"]
-        code = serializer.data["code"]
+        # use request.data.get to get the fields and remove validation in serializer and do your validation in the views
+        email = request.data.get("email")
+        code = request.data.get("code")
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if user.otp.code != code:
+        otp = user.otp.first()
+        if otp is None or otp.code is None:
+            return Response({"message": "No OTP found for this account"}, status=status.HTTP_400_BAD_REQUEST)
+        elif otp.code != code:
             return Response({"message": "Code is not correct"}, status=status.HTTP_400_BAD_REQUEST)
-        elif user.otp.expired:
-            user.otp.code = None
-            user.otp.save()
+        elif otp.expired:
+            otp.code = None  # set it to null in the admin
+            otp.save()
             return Response({"message": "Code has expired"}, status=status.HTTP_400_BAD_REQUEST)
         elif user.is_verified:
+            otp.delete()
             return Response({"message": "Account already verified. Log in"}, status=status.HTTP_200_OK)
 
         user.is_verified = True
-        user.otp.code = None
-        user.otp.save()
+        otp.delete()
         if not user.email_changed:
             Util.email_verified(user)
         user.save()
         return Response({"message": "Account verified successfully"}, status=status.HTTP_200_OK)
 
-
-class LoginView(TokenObtainPairView):
-    serializer_class = TokenObtainPairSerializer
-    authentication_classes = [CustomHeaderAuthentication]
-
-    def post(self, request, **kwargs):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.data["email"]
-        password = serializer.data["password"]
-        user = authenticate(request, email=email, password=password)
-        if not user:
-            return Response({"message": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
-        if not user.is_verified:
-            return Response({"message": "Email is not verified"}, status=status.HTTP_400_BAD_REQUEST)
-
-        tokens = super().post(request)
-        return Response({"message": "Logged in successfully", "tokens": tokens.data}, status=status.HTTP_200_OK)

@@ -1,3 +1,5 @@
+import re
+
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from rest_framework import serializers
@@ -5,12 +7,10 @@ from rest_framework import serializers
 from accounts.models import User
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
     password = serializers.CharField(max_length=50, min_length=6, write_only=True)
-
-    class Meta:
-        model = User
-        fields = ['full_name', 'email', 'password']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -34,12 +34,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
-class VerifySerializer(serializers.ModelSerializer):
+class VerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
     code = serializers.IntegerField()
-
-    class Meta:
-        model = User
-        fields = ['email', 'code']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -52,17 +49,18 @@ class VerifySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid email format")
 
         # validate code
-        if len(code) != 4:
-            raise ValidationError("Code must be 4 numbers")
+        if not code:
+            raise serializers.ValidationError("Code is required")
+
+        if not re.match("^[0-9]{4}$", str(code)):
+            raise serializers.ValidationError("Code must be a 4-digit number")
+
         return attrs
 
 
-class LoginSerializer(serializers.ModelSerializer):
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
     password = serializers.CharField(max_length=50, min_length=6, write_only=True)
-
-    class Meta:
-        model = User
-        fields = ['email', 'password']
 
     def validate(self, attrs):
         email = attrs.get('email', '')

@@ -1,4 +1,5 @@
 asgiref==3.6.0
+attrs==22.2.0
 beautifulsoup4==4.11.2
 black==23.1.0
 cachetools==5.3.0
@@ -17,6 +18,7 @@ django-rest-framework==0.1.0
 django_debug_toolbar==3.8.1
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.2.2
+drf-spectacular==0.26.0
 Faker==17.6.0
 google-api-core==2.11.0
 google-api-python-client==2.80.0
@@ -25,6 +27,8 @@ google-auth-httplib2==0.1.0
 googleapis-common-protos==1.58.0
 httplib2==0.21.0
 idna==3.4
+inflection==0.5.1
+jsonschema==4.17.3
 mypy-extensions==1.0.0
 mysqlclient==2.1.1
 packaging==23.0
@@ -36,9 +40,11 @@ pyasn1==0.4.8
 pyasn1-modules==0.2.8
 PyJWT==2.6.0
 pyparsing==3.0.9
+pyrsistent==0.19.3
 python-dateutil==2.8.2
 python-decouple==3.8
 pytz==2022.7.1
+PyYAML==6.0
 requests==2.28.2
 rsa==4.9
 six==1.16.0

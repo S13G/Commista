@@ -13,8 +13,8 @@ from accounts.models import Otp, User
 # It takes a user ID as input and retrieves the user object from the database.
 def send_activation_email(user_id):
     user = User.objects.get(id=user_id)
-    otp = Otp.objects.create(user=user, code=str(random.randint(1000, 9999)),
-                             expiry_date=timezone.now() + timezone.timedelta(minutes=5))
+    code = random.randint(1000, 9999)
+    otp = Otp.objects.create(user=user, code=code, expiry_date=timezone.now() + timezone.timedelta(minutes=15))
     context = {'full_name': user.full_name, 'code': otp.code}
     message = render_to_string("activation_email.html", context)
     msg = EmailMessage(subject='Activate Your Account', body=message, from_email=settings.EMAIL_HOST_USER,
