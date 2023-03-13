@@ -2,10 +2,19 @@ from decouple import config
 from django.contrib.auth import authenticate, get_user_model
 from faker import Faker
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.tokens import RefreshToken
 
 fake = Faker()
 
 User = get_user_model()
+
+
+def tokens(self):
+    refresh = RefreshToken.for_user(self)
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh)
+    }
 
 
 def generate_full_name(name):

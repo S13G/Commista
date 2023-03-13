@@ -3,7 +3,6 @@ from uuid import uuid4
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.choices import GENDER_CHOICES
 from accounts.validators import validate_full_name, validate_phone_number
@@ -35,13 +34,6 @@ class User(AbstractUser):
     def __str__(self):
         return self.full_name
 
-    def tokens(self):
-        refresh = RefreshToken.for_user(self)
-        return {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh)
-        }
-
 
 class Otp(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp")
@@ -53,5 +45,5 @@ class Otp(BaseModel):
         return f"{self.user.full_name} ----- {self.code}"
 
     def save(self, *args, **kwargs):
-        self.expired = self.expiry_date < timezone.now()
+        self.expired = self.expiry_date >= timezone.now() + timezone.timedelta(minutes=20)
         super(Otp, self).save(*args, **kwargs)
