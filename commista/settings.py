@@ -64,10 +64,6 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
-}
-
 SPECTACULAR_SETTINGS = {
     "TITLE": "COMMISTA API",
     "DESCRIPTION": "Commista: A e-commerce API",

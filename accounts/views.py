@@ -4,7 +4,6 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from accounts.emails import Util
@@ -117,15 +116,8 @@ class RefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        refresh_token = serializer.validated_data['refresh']
-        token = RefreshToken(refresh_token)
-        access_token = str(token.access_token)
-
-        # create a new instance of TokenRefreshSerializer with the new access token
-        serializer = TokenRefreshSerializer({'access': access_token})
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        access_token = serializer.validated_data['access']
+        return Response({"token": access_token}, status=status.HTTP_200_OK)
 
 
 class RegisterView(GenericAPIView):

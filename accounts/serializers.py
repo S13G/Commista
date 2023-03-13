@@ -63,7 +63,6 @@ class LoginSerializer(serializers.Serializer):
 
         return attrs
 
-
 class RegisterSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
