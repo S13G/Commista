@@ -1,10 +1,12 @@
 from django.contrib.auth import authenticate
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, TokenObtainPairSerializer, \
+    TokenRefreshSerializer
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView, TokenRefreshView
 
 from accounts.emails import Util
 from accounts.models import User
@@ -20,6 +22,19 @@ class ChangeEmailView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ChangeEmailSerializer
 
+    @extend_schema(
+            summary="Change Email Endpoint",
+            description="This endpoint allows the authenticated user to change their email address after requesting for a code",
+            request=ChangeEmailSerializer,
+            responses={
+                200: "Email updated successfully. Please check new email for verification",
+                400: "Invalid request or code has expired",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -58,6 +73,19 @@ class ChangePasswordView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ChangePasswordSerializer
 
+    @extend_schema(
+            summary="Change Password Endpoint",
+            description="This endpoint allows the authenticated user to change their password after requesting for a code",
+            request=ChangePasswordSerializer,
+            responses={
+                200: "Password updated successfully.",
+                400: "Invalid request or code has expired or not found",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -90,6 +118,19 @@ class ChangePasswordView(GenericAPIView):
 class LoginView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
 
+    @extend_schema(
+            summary="Login Endpoint",
+            description="This endpoint logs in a user",
+            request=LoginSerializer,
+            responses={
+                200: "Password updated successfully.",
+                400: "Email not verified or Invalid Credentials",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request, **kwargs):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -103,26 +144,63 @@ class LoginView(TokenObtainPairView):
             return Response({"message": "Email is not verified"}, status=status.HTTP_400_BAD_REQUEST)
         if not user.is_active:
             return Response({"message": "Account is not active, contact the admin"}, status=status.HTTP_400_BAD_REQUEST)
-        user.is_active = True
-        user.save()
         tokens = super().post(request)
         return Response({"message": "Logged in successfully", "tokens": tokens.data,
                          "data": {"email": user.email, "full_name": user.full_name}}, status=status.HTTP_200_OK)
 
 
+class LogoutView(TokenBlacklistView):
+    serializer_class = TokenBlacklistSerializer
+
+    @extend_schema(
+            summary="Logout Endpoint",
+            description="This endpoint logs out an authenticated user.",
+            request=TokenBlacklistSerializer,
+            responses={
+                200: "Logged out successfully.",
+                500: "Internal server error."
+            }
+
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
+
+
 class RefreshView(TokenRefreshView):
     serializer_class = TokenRefreshSerializer
 
+    @extend_schema(
+            summary="Refresh token Endpoint",
+            description="This endpoint refreshes an access token",
+            request=TokenRefreshSerializer,
+            responses={
+                200: "Refreshed successfully.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         access_token = serializer.validated_data['access']
-        return Response({"token": access_token}, status=status.HTTP_200_OK)
+        return Response({"message": "Refreshed successfully", "token": access_token}, status=status.HTTP_200_OK)
 
 
 class RegisterView(GenericAPIView):
     serializer_class = RegisterSerializer
 
+    @extend_schema(
+            summary="Register Endpoint",
+            description="This endpoint registers a new user.",
+            request=RegisterSerializer,
+            responses={
+                200: "Registered successfully. Check email for verification code.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -138,6 +216,17 @@ class RegisterView(GenericAPIView):
 class ResendEmailVerificationView(GenericAPIView):
     serializer_class = ResendEmailVerificationSerializer
 
+    @extend_schema(
+            summary="Resend Email Verification Code Endpoint",
+            description="This endpoint sends a new user a new code to verify if previous code faced issues",
+            request=ResendEmailVerificationSerializer,
+            responses={
+                200: "Verification code sent successfully or Account already Verified.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -157,6 +246,18 @@ class RequestEmailChangeCodeView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = RequestEmailChangeCodeSerializer
 
+    @extend_schema(
+            summary="Request Email Change code Endpoint",
+            description="This endpoint allows the authenticated user to request for a code to change their email",
+            request=RequestEmailChangeCodeSerializer,
+            responses={
+                200: "Code for email change sent successfully.",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -173,6 +274,19 @@ class RequestNewPasswordCodeView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = RequestNewPasswordCodeSerializer
 
+    @extend_schema(
+            summary="Request New Password Endpoint",
+            description="This endpoint allows the authenticated user to request for a code to change password",
+            request=RequestNewPasswordCodeSerializer,
+            responses={
+                200: "Password code sent successfully.",
+                400: "Verify your account",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -191,6 +305,19 @@ class RequestNewPasswordCodeView(GenericAPIView):
 class VerifyEmailView(GenericAPIView):
     serializer_class = VerifySerializer
 
+    @extend_schema(
+            summary="Verify Email Endpoint",
+            description="This endpoint allows a user to verify their email with the code received",
+            request=VerifySerializer,
+            responses={
+                200: "Account verified successfully.",
+                400: "Invalid request or code has expired or not found",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
