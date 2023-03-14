@@ -1,5 +1,6 @@
 import random
 import threading
+import warnings
 
 from django.conf import settings
 from django.core.mail import EmailMessage
@@ -12,7 +13,11 @@ from accounts.models import Otp, User
 # This function sends an activation email to a user with an OTP code to change their password.
 # It takes a user ID as input and retrieves the user object from the database.
 def password_verification_email(user_id):
-    user = User.objects.get(id=user_id)
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        warnings.warn(f"User with this id {user_id} does not exist")
+        return
     code = random.randint(1000, 9999)
     otp = Otp.objects.create(user=user, code=code, expiry_date=timezone.now() + timezone.timedelta(minutes=10))
     context = {'full_name': user.full_name, 'code': otp.code}
@@ -26,7 +31,11 @@ def password_verification_email(user_id):
 # This function sends an activation email to a user with an OTP code to verify their account.
 # It takes a user ID as input and retrieves the user object from the database.
 def send_activation_email(user_id):
-    user = User.objects.get(id=user_id)
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        warnings.warn(f"User with this id {user_id} does not exist")
+        return
     code = random.randint(1000, 9999)
     otp = Otp.objects.create(user=user, code=code, expiry_date=timezone.now() + timezone.timedelta(minutes=15))
     context = {'full_name': user.full_name, 'code': otp.code}
@@ -40,7 +49,11 @@ def send_activation_email(user_id):
 # This function sends an email change email to a user with an OTP code to change their email.
 # It takes a user ID as input and retrieves the user object from the database.
 def send_email_change_verification(user_id):
-    user = User.objects.get(id=user_id)
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        warnings.warn(f"User with this id {user_id} does not exist")
+        return
     code = random.randint(1000, 9999)
     otp = Otp.objects.create(user=user, code=code, expiry_date=timezone.now() + timezone.timedelta(minutes=10))
     context = {'full_name': user.full_name, 'code': otp.code}
@@ -54,7 +67,11 @@ def send_email_change_verification(user_id):
 # This function sends an activation email to a user with an OTP code to verify their account.
 # It takes a user ID as input and retrieves the user object from the database.
 def send_verification_email(user_id):
-    user = User.objects.get(id=user_id)
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        warnings.warn(f"User with this id {user_id} does not exist")
+        return
     context = {'full_name': user.full_name}
     message = render_to_string("verification_email.html", context)
     msg = EmailMessage(subject='Account Verified', body=message, from_email=settings.EMAIL_HOST_USER,

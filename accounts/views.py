@@ -307,12 +307,11 @@ class VerifyEmailView(GenericAPIView):
 
     @extend_schema(
             summary="Verify Email Endpoint",
-            description="This endpoint allows a user to verify their email with the code received",
+            description="This endpoint allows users to authenticate their email with the code received",
             request=VerifySerializer,
             responses={
                 200: "Account verified successfully.",
                 400: "Invalid request or code has expired or not found",
-                401: "Unauthorized. Authentication credentials were not provided.",
                 404: "Account not found.",
                 500: "Internal server error."
             }

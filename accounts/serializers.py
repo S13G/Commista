@@ -50,7 +50,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(max_length=50, min_length=6, write_only=True)
+    password = serializers.CharField(max_length=150, min_length=6, write_only=True)
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -62,6 +62,7 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid email format")
 
         return attrs
+
 
 class RegisterSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
