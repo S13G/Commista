@@ -49,6 +49,7 @@ LOCAL_APPS = [
 THIRD_PARTY_APPS = [
     "drf_spectacular",
     "rest_framework",
+    "rest_framework.authtoken",  # for testing purposes
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "debug_toolbar",

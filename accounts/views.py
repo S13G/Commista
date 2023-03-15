@@ -213,6 +213,34 @@ class RegisterView(GenericAPIView):
                         status=status.HTTP_201_CREATED)
 
 
+class RequestEmailChangeCodeView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = RequestEmailChangeCodeSerializer
+
+    @extend_schema(
+            summary="Request Email Change code Endpoint",
+            description="This endpoint allows the authenticated user to request for a code to change their email",
+            request=RequestEmailChangeCodeSerializer,
+            responses={
+                200: "Code for email change sent successfully.",
+                401: "Unauthorized. Authentication credentials were not provided.",
+                404: "Account not found.",
+                500: "Internal server error."
+            }
+
+    )
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = request.data.get('email')
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+        Util.email_change(user)
+        return Response({"message": "Code for email change sent successfully"}, status=status.HTTP_200_OK)
+
+
 class ResendEmailVerificationView(GenericAPIView):
     serializer_class = ResendEmailVerificationSerializer
 
@@ -240,34 +268,6 @@ class ResendEmailVerificationView(GenericAPIView):
 
         Util.email_activation(user)
         return Response({"message": "Verification code sent successfully"}, status=status.HTTP_200_OK)
-
-
-class RequestEmailChangeCodeView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = RequestEmailChangeCodeSerializer
-
-    @extend_schema(
-            summary="Request Email Change code Endpoint",
-            description="This endpoint allows the authenticated user to request for a code to change their email",
-            request=RequestEmailChangeCodeSerializer,
-            responses={
-                200: "Code for email change sent successfully.",
-                401: "Unauthorized. Authentication credentials were not provided.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
-
-    )
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = request.data.get('email')
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
-        Util.email_change(user)
-        return Response({"message": "Code for email change sent successfully"}, status=status.HTTP_200_OK)
 
 
 class RequestNewPasswordCodeView(GenericAPIView):
