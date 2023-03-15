@@ -1,4 +1,5 @@
 import random
+import warnings
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
@@ -14,6 +15,8 @@ from accounts.models import Otp
 
 class Authentication(APITestCase):
     def setUp(self):
+        warnings.filterwarnings("ignore")
+
         # URLs
         self.change_email = reverse("change_email")
         self.change_password = reverse("change_password")
@@ -36,6 +39,9 @@ class Authentication(APITestCase):
         }
         self.token_client = APIClient()
         self.User = get_user_model()
+
+    def tearDown(self):
+        self.User.objects.all().delete()
 
     def test_user_cannot_register_without_data(self):
         response = self.client.post(self.registration_url, {})
