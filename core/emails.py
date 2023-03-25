@@ -7,7 +7,7 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from accounts.models import Otp, User
+from core.models import Otp, User
 
 
 # This function sends an activation email to a user with an OTP code to change their password.

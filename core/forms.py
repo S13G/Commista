@@ -1,6 +1,6 @@
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
-from accounts.models import User
+from core.models import User
 
 
 # ADMIN ACCOUNT CREATION

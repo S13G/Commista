@@ -1,7 +1,7 @@
 from django.urls import path
 
-from accounts import views
-from accounts.utils import GoogleSocialAuthView
+from core import views
+from core.utils import GoogleSocialAuthView
 
 urlpatterns = [
     path('change-email/', views.ChangeEmailView.as_view(), name="change_email"),

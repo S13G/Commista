@@ -4,8 +4,8 @@ from decouple import config
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 
-from accounts import google
-from accounts.oauth_funcs import register_social_user
+from core import google
+from core.oauth_funcs import register_social_user
 
 
 class GoogleSocialAuthSerializer(serializers.Serializer):

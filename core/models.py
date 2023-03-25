@@ -4,8 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
-from accounts.choices import GENDER_CHOICES
-from accounts.validators import validate_full_name, validate_phone_number
+from core.choices import GENDER_CHOICES
+from core.validators import validate_full_name, validate_phone_number
 from common.models import BaseModel
 from .managers import CustomUserManager
 

@@ -11,8 +11,8 @@ from django.db.models import Avg
 from django.utils import timezone
 from django.utils.functional import cached_property
 
-from accounts.validators import validate_phone_number
 from common.models import BaseModel
+from core.validators import validate_phone_number
 from store.choices import (CONDITION_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
                            SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
 from store.validators import validate_image_size
@@ -51,6 +51,11 @@ class ItemLocation(BaseModel):
         return self.location
 
 
+class ProductsManager(models.Manager):
+    def get_queryset(self):
+        return super(ProductsManager, self).get_queryset().select_related('category').filter(inventory__gt=0)
+
+
 class Product(BaseModel):
     title = models.CharField(max_length=255, unique=True)
     slug = AutoSlugField(
@@ -77,6 +82,8 @@ class Product(BaseModel):
             blank=False,
             related_name="products",
     )
+    objects = models.Manager()
+    categorized = ProductsManager()
 
     def __str__(self):
         return f"{self.title} --- {self.category}"
@@ -92,16 +99,16 @@ class Product(BaseModel):
                 and self.flash_sale_end_date is not None
                 and self.flash_sale_end_date <= self.flash_sale_start_date
         ):
-            raise ValidationError("End date must be after start date.")
+            raise ValidationError("End date must greater than start date.")
         elif self.flash_sale_start_date == self.flash_sale_end_date:
             raise ValidationError("Start date and end date cannot be equal.")
 
     @property
     def discount_price(self):
-        discount = None
         if self.percentage_off > 0:
             discount = self.price - (self.price * self.percentage_off)
-        return discount
+            return discount
+        return "No discount price for this product for now"
 
 
 class ProductImage(models.Model):

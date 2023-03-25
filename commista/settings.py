@@ -41,7 +41,7 @@ DJANGO_APPS = [
 ]
 
 LOCAL_APPS = [
-    "accounts",
+    "core",
     "common",
     "store",
 ]
@@ -56,7 +56,7 @@ THIRD_PARTY_APPS = [
 ]
 
 REST_FRAMEWORK = {
-    'EXCEPTION_HANDLER': 'accounts.exceptions.custom_exception_handler',
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -152,7 +152,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "core.User"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/

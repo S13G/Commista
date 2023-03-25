@@ -8,9 +8,9 @@ from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, Token
     TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView, TokenRefreshView
 
-from accounts.emails import Util
-from accounts.models import User
-from accounts.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, RegisterSerializer, \
+from core.emails import Util
+from core.models import User
+from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, RegisterSerializer, \
     RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, ResendEmailVerificationSerializer, \
     VerifySerializer
 
@@ -44,18 +44,20 @@ class ChangeEmailView(GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         otp = user.otp.first()
         if otp is None or otp.code is None:
-            return Response({"message": "No OTP found for this account"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "No OTP found for this account", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         elif otp.code != code:
-            return Response({"message": "Code is not correct"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Code is not correct", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         elif otp.expired:
             otp.delete()
-            return Response({"message": "Code has expired. Request for another"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Code has expired. Request for another", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if user.email == new_email:
-            return Response({"message": "New email cannot be same as old email"},
+            return Response({"message": "New email cannot be same as old email", "status": "failed"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         user.email = new_email
@@ -65,8 +67,9 @@ class ChangeEmailView(GenericAPIView):
         otp.delete()
         if not user.is_verified:
             Util.email_activation(user)
-        return Response({"message": "Email updated successfully. Please check new email for verification"},
-                        status=status.HTTP_200_OK)
+        return Response(
+                {"message": "Email updated successfully. Please check new email for verification", "status": "success"},
+                status=status.HTTP_200_OK)
 
 
 class ChangePasswordView(GenericAPIView):
@@ -95,24 +98,26 @@ class ChangePasswordView(GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         otp = user.otp.first()
         if otp is None or otp.code is None:
-            return Response({"message": "No OTP found for this account"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "No OTP found for this account", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         elif otp.code != code:
-            return Response({"message": "Code is not correct"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Code is not correct", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         elif otp.expired:
             otp.delete()
-            return Response({"message": "Code has expired. Request for another"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Code has expired. Request for another", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if user.check_password(password):
-            return Response({"message": "New password cannot be same as old password"},
+            return Response({"message": "New password cannot be same as old password", "status": "failed"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(password)
         user.save()
         otp.delete()
-        return Response({"message": "Password updated successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Password updated successfully", "status": "success"}, status=status.HTTP_200_OK)
 
 
 class LoginView(TokenObtainPairView):
@@ -139,14 +144,17 @@ class LoginView(TokenObtainPairView):
         password = serializer.validated_data["password"]
         user = authenticate(request, email=email, password=password)
         if not user:
-            return Response({"message": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Invalid credentials", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         if not user.is_verified:
-            return Response({"message": "Email is not verified"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Email is not verified", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         if not user.is_active:
-            return Response({"message": "Account is not active, contact the admin"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Account is not active, contact the admin", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         tokens = super().post(request)
         return Response({"message": "Logged in successfully", "tokens": tokens.data,
-                         "data": {"email": user.email, "full_name": user.full_name}}, status=status.HTTP_200_OK)
+                         "data": {"email": user.email, "full_name": user.full_name}, "status": "success"},
+                        status=status.HTTP_200_OK)
 
 
 class LogoutView(TokenBlacklistView):
@@ -165,7 +173,7 @@ class LogoutView(TokenBlacklistView):
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
+        return Response({"message": "Logged out successfully.", "status": "success"}, status=status.HTTP_200_OK)
 
 
 class RefreshView(TokenRefreshView):
@@ -185,7 +193,8 @@ class RefreshView(TokenRefreshView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         access_token = serializer.validated_data['access']
-        return Response({"message": "Refreshed successfully", "token": access_token}, status=status.HTTP_200_OK)
+        return Response({"message": "Refreshed successfully", "token": access_token, "status": "success"},
+                        status=status.HTTP_200_OK)
 
 
 class RegisterView(GenericAPIView):
@@ -209,8 +218,8 @@ class RegisterView(GenericAPIView):
         data = serializer.data
 
         Util.email_activation(user)
-        return Response({"message": "Registered successfully. Check email for verification code", "data": data},
-                        status=status.HTTP_201_CREATED)
+        return Response({"message": "Registered successfully. Check email for verification code", "data": data,
+                         "status": "success"}, status=status.HTTP_201_CREATED)
 
 
 class RequestEmailChangeCodeView(GenericAPIView):
@@ -236,9 +245,10 @@ class RequestEmailChangeCodeView(GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         Util.email_change(user)
-        return Response({"message": "Code for email change sent successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Code for email change sent successfully", "status": "success"},
+                        status=status.HTTP_200_OK)
 
 
 class ResendEmailVerificationView(GenericAPIView):
@@ -262,12 +272,14 @@ class ResendEmailVerificationView(GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         if user.is_verified:
-            return Response({"message": "Account already verified. Log in"}, status=status.HTTP_200_OK)
+            return Response({"message": "Account already verified. Log in", "status": "success"},
+                            status=status.HTTP_200_OK)
 
         Util.email_activation(user)
-        return Response({"message": "Verification code sent successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Verification code sent successfully", "status": "success"},
+                        status=status.HTTP_200_OK)
 
 
 class RequestNewPasswordCodeView(GenericAPIView):
@@ -294,12 +306,12 @@ class RequestNewPasswordCodeView(GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         if not user.is_verified:
-            return Response({"message": "Verify your account."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Verify your account.", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
 
         Util.password_activation(user)
-        return Response({"message": "Password code sent successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Password code sent successfully", "status": "success"}, status=status.HTTP_200_OK)
 
 
 class VerifyEmailView(GenericAPIView):
@@ -326,23 +338,26 @@ class VerifyEmailView(GenericAPIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"message": "Account not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 
         otp = user.otp.first()
         if otp is None or otp.code is None:
-            return Response({"message": "No OTP found for this account"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "No OTP found for this account", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         elif otp.code != code:
-            return Response({"message": "Code is not correct"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Code is not correct", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         elif otp.expired:
             otp.delete()
-            return Response({"message": "Code has expired. Request for another"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Code has expired. Request for another", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         elif user.is_verified:
             otp.delete()
-            return Response({"message": "Account already verified. Log in"}, status=status.HTTP_200_OK)
+            return Response({"message": "Account already verified. Log in", "status": "success"},
+                            status=status.HTTP_200_OK)
 
         user.is_verified = True
         otp.delete()
         if not user.email_changed:
             Util.email_verified(user)
         user.save()
-        return Response({"message": "Account verified successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Account verified successfully", "status": "success"}, status=status.HTTP_200_OK)

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from rest_framework import serializers
 
-from accounts.models import User
+from core.models import User
 
 
 class ChangeEmailSerializer(serializers.Serializer):

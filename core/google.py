@@ -10,7 +10,7 @@ class Google:
         # validate method queries, google oauth2 api to fetch the user info
         try:
             id_info = id_token.verify_oauth2_token(auth_token, requests.Request())
-            if 'accounts.google.com' in id_info['iss']:
+            if 'core.google.com' in id_info['iss']:
                 return id_info
         except:
             return "The token is either invalid or expired"

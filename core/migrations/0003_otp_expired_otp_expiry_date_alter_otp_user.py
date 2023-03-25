@@ -7,7 +7,7 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("accounts", "0002_user_is_verified"),
+        ("core", "0002_user_is_verified"),
     ]
 
     operations = [
