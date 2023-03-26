@@ -13,7 +13,7 @@ from django.utils.functional import cached_property
 
 from common.models import BaseModel
 from core.validators import validate_phone_number
-from store.choices import (CONDITION_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
+from store.choices import (CONDITION_CHOICES, GENDER_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
                            SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
 from store.validators import validate_image_size
 
@@ -24,6 +24,10 @@ Customer = get_user_model()
 
 class Category(BaseModel):
     title = models.CharField(max_length=255, unique=True)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True)
+
+    class Meta:
+        verbose_name_plural = "Categories"
 
     def __str__(self):
         return self.title
@@ -211,6 +215,7 @@ class CouponCode(BaseModel):
 
 
 class Order(BaseModel):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
     transaction_ref = models.CharField(max_length=10, unique=True, editable=False)
     placed_at = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(
@@ -283,6 +288,9 @@ class Country(BaseModel):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=10)
 
+    class Meta:
+        verbose_name_plural = "Countries"
+
     def __str__(self):
         return f"{self.name} -- {self.code}"
 
@@ -300,6 +308,9 @@ class Address(BaseModel):
     state = models.CharField(max_length=255)
     zip_code = models.CharField(max_length=10)
     phone_number = models.CharField(max_length=20, validators=[validate_phone_number])
+
+    class Meta:
+        verbose_name_plural = "Addresses"
 
     def __str__(self):
         return f"{self.customer.full_name}"

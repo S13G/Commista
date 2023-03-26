@@ -13,6 +13,7 @@ Django==4.1.7
 django-autoslug==1.9.8
 django-cloudinary-storage==0.3.0
 django-compat==1.0.15
+django-cors-headers==3.14.0
 django-jazzmin==2.6.0
 django-rest-framework==0.1.0
 django_debug_toolbar==3.8.1
@@ -59,3 +60,4 @@ tomli==2.0.1
 uritemplate==4.1.1
 urllib3==1.26.15
 utils==1.0.1
+whitenoise==6.4.0
