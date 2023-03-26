@@ -11,7 +11,7 @@ from .managers import CustomUserManager
 
 
 class User(AbstractUser):
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False, unique=True)
+    id = models.CharField(max_length=50, primary_key=True, default=uuid4, editable=False, unique=True)
     username = None
     full_name = models.CharField(max_length=255, validators=[validate_full_name])
     email = models.EmailField(unique=True)

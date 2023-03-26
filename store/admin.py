@@ -102,7 +102,7 @@ class ProductReviewAdmin(admin.ModelAdmin):
     list_display = ("product", "customer", "ratings",)
     list_filter = ("product__title", "product__category",)
     list_per_page = 30
-    list_select_related = ("product_category",)
+    list_select_related = ("product__category",)
     ordering = ("customer", "ratings",)
     readonly_fields = ("product_review_images",)
     search_fields = ("product__title",)

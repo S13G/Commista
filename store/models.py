@@ -94,7 +94,8 @@ class Product(BaseModel):
 
     @cached_property
     def average_ratings(self):
-        return self.product_reviews.aggregrate(Avg("ratings"))["ratings_avg"] or 0
+        result = self.product_reviews.aggregate(Avg("ratings"))
+        return result["ratings__avg"] or 0
 
     def clean(self):
         super().clean()
@@ -104,13 +105,17 @@ class Product(BaseModel):
                 and self.flash_sale_end_date <= self.flash_sale_start_date
         ):
             raise ValidationError("End date must greater than start date.")
-        elif self.flash_sale_start_date == self.flash_sale_end_date:
+        elif (
+                self.flash_sale_start_date is not None
+                and self.flash_sale_end_date is not None
+                and self.flash_sale_start_date == self.flash_sale_end_date
+        ):
             raise ValidationError("Start date and end date cannot be equal.")
 
     @property
     def discount_price(self):
         if self.percentage_off > 0:
-            discount = self.price - (self.price * self.percentage_off)
+            discount = self.price - (self.price * self.percentage_off / 100)
             return discount
         return "No discount price for this product for now"
 
