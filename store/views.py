@@ -31,14 +31,14 @@ class CategoryAndSalesView(GenericAPIView):
                         status=status.HTTP_200_OK)
 
 
-class FavouriteProductsView(GenericAPIView):
+class FavoriteProductsView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         if user is None:
             return Response({"message": "User does not exist", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
-        favourite_products = FavoriteProduct.objects.filter(customer=user)
+        favorite_products = FavoriteProduct.objects.filter(customer=user)
 
         data = [
             {
@@ -60,20 +60,45 @@ class FavouriteProductsView(GenericAPIView):
                 "discount_price": product.discount_price,
                 "average_ratings": product.average_ratings,
                 "images": [image.image_url for image in product.images.all()]
-            } for product in favourite_products.all()
+            } for product in favorite_products.all()
         ]
-        return Response({"message": "All favourite products fetched", "data": data, "status": "success"},
+        return Response({"message": "All favorite products fetched", "data": data, "status": "success"},
                         status=status.HTTP_200_OK)
 
     def post(self, request):
         user = request.user
-        product_id = request.data.get("id")
-        if product_id is None:
-            return Response({"message": "You can't proceed without filling in the field", "status": "failed"},
+        product_id = request.data.get("product_id")
+        if not product_id:
+            return Response({"message": "Product id is required", "status": "failed"},
                             status=status.HTTP_400_BAD_REQUEST)
-        product = Product.objects.filter(id=product_id)
-        if not product:
-            return Response({"message": "Wrong product id or product does not exist", "status": "failed"},
+
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"message": "Invalid product id", "status": "failed"},
                             status=status.HTTP_400_BAD_REQUEST)
-        favourite, created = FavoriteProduct.objects.filter(customer=user, product_id=product)
-        return Response({"message": "Product added to favourites list", "status": "failed"}, status=status.HTTP_200_OK)
+
+        favorite, created = FavoriteProduct.objects.get_or_create(customer=user, product=product)
+
+        if created:
+            return Response({"message": "Product added to favorites", "status": "success"},
+                            status=status.HTTP_201_CREATED)
+        else:
+            return Response({"message": "Product already in favorites", "status": "success"}, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        user = request.user
+        product_id = request.data.get("product_id")
+        if not product_id:
+            return Response({"message": "Product id is required", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"message": "Invalid product id", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        FavoriteProduct.objects.filter(customer=user, product=product).delete()
+        return Response({"message": "Product removed from favorite list", "status": "succeed"},
+                        status=status.HTTP_200_OK)
