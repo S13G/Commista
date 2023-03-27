@@ -57,7 +57,8 @@ class ItemLocation(BaseModel):
 
 class ProductsManager(models.Manager):
     def get_queryset(self):
-        return super(ProductsManager, self).get_queryset().select_related('category').filter(inventory__gt=0)
+        return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews', 'size',
+                                                                            'colour', 'images').filter(inventory__gt=0)
 
 
 class Product(BaseModel):
