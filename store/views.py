@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from store.models import Category, FavoriteProduct, Product
-from store.serializers import ProductSerializer
+from store.serializers import ProductDetailSerializer, ProductReviewSerializer, ProductSerializer
 
 
 # Create your views here.
@@ -102,3 +102,30 @@ class FavoriteProductsView(GenericAPIView):
         FavoriteProduct.objects.filter(customer=user, product=product).delete()
         return Response({"message": "Product removed from favorite list", "status": "succeed"},
                         status=status.HTTP_200_OK)
+
+
+class ProductDetail(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductDetailSerializer
+
+    def get(self, request, *args, **kwargs):
+        product_id = self.kwargs.get("product_id")
+        if product_id is None:
+            return Response({"message": "This field is required", "status": "succeed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        product = Product.categorized.filter(id=product_id)
+        if not product.exists():
+            return Response({"message": "This product does not exist, try again", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        product = product.get()
+        related_products = product.category.products.exclude(id=product_id)[:10]
+        product_serializer = self.serializer_class(product)
+        related_products_serializer = ProductSerializer(related_products, many=True)
+        product_reviews = product.product_reviews.select_related('customer')
+        product_review_serializer = ProductReviewSerializer(product_reviews, many=True)
+        return Response({"message": "Product successfully fetched",
+                         "data": {
+                             "product_details": product_serializer.data,
+                             "related_products": related_products_serializer.data,
+                             "product_reviews": product_review_serializer.data
+                         }, "status": "succeed"}, status=status.HTTP_200_OK)

@@ -75,7 +75,6 @@ class Product(BaseModel):
     percentage_off = models.PositiveIntegerField(default=0)
     size = models.ManyToManyField(Size)
     colour = models.ManyToManyField(Colour)
-    ratings = models.PositiveIntegerField(default=0, validators=[MaxValueValidator(5)])
     inventory = models.PositiveIntegerField()
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
@@ -179,11 +178,11 @@ class ProductReview(BaseModel):
     product = models.ForeignKey(
             Product, on_delete=models.CASCADE, related_name="product_reviews"
     )
-    ratings = models.PositiveIntegerField(default=0, validators=[MaxValueValidator(5)])
+    ratings = models.PositiveIntegerField(default=0, validators=[MinValueValidator(1), MaxValueValidator(5)])
     description = models.TextField()
 
     def __str__(self):
-        return f"{self.customer.full_name} --- {self.product.title} --- {self.ratings}"
+        return f"{self.customer.full_name} --- {self.product.title} --- {self.ratings} stars"
 
 
 class ProductReviewImage(models.Model):
