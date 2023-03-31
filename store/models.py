@@ -195,6 +195,7 @@ class ProductReviewImage(models.Model):
 
 
 class Notification(BaseModel):
+    customers = models.ManyToManyField(Customer)
     notification_type = models.CharField(max_length=1, choices=NOTIFICATION_CHOICES)
     title = models.CharField(max_length=255)
     description = models.TextField()

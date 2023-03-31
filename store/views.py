@@ -1,10 +1,11 @@
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from store.models import Category, FavoriteProduct, Product, ProductReview
+from store.models import Category, FavoriteProduct, Notification, Product, ProductReview
 from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductReviewSerializer, \
     ProductSerializer
 
@@ -151,4 +152,15 @@ class AddProductReviewView(GenericAPIView):
         return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
 
 
-class
+class NotificationView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.is_staff:
+            notifications = Notification.objects.all().values('notification_type', 'title', 'description', 'created')
+        else:
+            notifications = Notification.objects.filter(Q(customers__in=[user]) | Q(general=True)).values(
+                'notification_type', 'title', 'customers', 'description', 'created')
+        return Response({"message": "Notifications sent", "data": notifications, "status": "succeed"},
+                        status.HTTP_200_OK)
