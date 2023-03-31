@@ -44,3 +44,9 @@ class ProductReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductReview
         fields = ('customer_name', 'ratings', 'description')
+
+
+class AddProductReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductReview
+        fields = ['id', 'ratings', 'description']

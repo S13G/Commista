@@ -5,7 +5,7 @@ import string
 from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
@@ -14,7 +14,7 @@ from django.utils.functional import cached_property
 from common.models import BaseModel
 from core.validators import validate_phone_number
 from store.choices import (CONDITION_CHOICES, GENDER_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
-                           SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
+                           RATING_CHOICES, SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
 from store.validators import validate_image_size
 
 # Create your models here.
@@ -178,7 +178,7 @@ class ProductReview(BaseModel):
     product = models.ForeignKey(
             Product, on_delete=models.CASCADE, related_name="product_reviews"
     )
-    ratings = models.PositiveIntegerField(default=0, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    ratings = models.IntegerField(choices=RATING_CHOICES, null=True)
     description = models.TextField()
 
     def __str__(self):

@@ -4,8 +4,9 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from store.models import Category, FavoriteProduct, Product
-from store.serializers import ProductDetailSerializer, ProductReviewSerializer, ProductSerializer
+from store.models import Category, FavoriteProduct, Product, ProductReview
+from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductReviewSerializer, \
+    ProductSerializer
 
 
 # Create your views here.
@@ -104,7 +105,7 @@ class FavoriteProductsView(GenericAPIView):
                         status=status.HTTP_200_OK)
 
 
-class ProductDetail(GenericAPIView):
+class ProductDetailView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductDetailSerializer
 
@@ -129,3 +130,25 @@ class ProductDetail(GenericAPIView):
                              "related_products": related_products_serializer.data,
                              "product_reviews": product_review_serializer.data
                          }, "status": "succeed"}, status=status.HTTP_200_OK)
+
+
+class AddProductReviewView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AddProductReviewSerializer
+
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        product_id = data.get('id')
+        product = Product.categorized.filter(id=product_id)
+        if not product.exists():
+            return Response({"message": "This product does not exist, try again", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        product = product.get()
+        ProductReview.objects.create(customer=user, product=product, **data)
+        return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
+
+
+class
