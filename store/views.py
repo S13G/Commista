@@ -1,10 +1,13 @@
 from django.db.models import Q
 from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
+from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from store.choices import GENDER_FEMALE, GENDER_MALE
 from store.models import Category, FavoriteProduct, Notification, Product, ProductReview
 from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductReviewSerializer, \
     ProductSerializer
@@ -161,6 +164,36 @@ class NotificationView(GenericAPIView):
             notifications = Notification.objects.all().values('notification_type', 'title', 'description', 'created')
         else:
             notifications = Notification.objects.filter(Q(customers__in=[user]) | Q(general=True)).values(
-                'notification_type', 'title', 'customers', 'description', 'created')
+                    'notification_type', 'title', 'customers', 'description', 'created')
         return Response({"message": "Notifications sent", "data": notifications, "status": "succeed"},
+                        status.HTTP_200_OK)
+
+
+class CategoryListView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        all_categories = Category.objects.values('id', 'title')
+        women_categories = Category.objects.filter(gender=GENDER_MALE).values('id', 'title')
+        men_categories = Category.objects.filter(gender=GENDER_FEMALE).values('id', 'title')
+        return Response({"message": "All categories fetched", "all_categories": all_categories,
+                         "men_categories": men_categories, "women_categories": women_categories, "status": "succeed"},
+                        status.HTTP_200_OK)
+
+
+class ProductsSearchView(GenericAPIView):
+    serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['name', 'description']
+
+    def get(self, request):
+        products = Product.categorized.all()
+        search_query = self.request.query_params.get('search', None)
+        if search_query is not None:
+            products = products.filter(title__icontains=search_query) | products.filter(
+                    description__icontains=search_query)
+            if not products.exists():
+                return Response({"message": "Product not found", "status": "failed"}, status.HTTP_404_NOT_FOUND)
+        serializer = self.serializer_class(products, many=True)
+        return Response({"message": "All products fetched", "data": serializer.data, "status": "succeed"},
                         status.HTTP_200_OK)
