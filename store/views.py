@@ -3,13 +3,16 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.filters import SearchFilter
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from store.choices import GENDER_FEMALE, GENDER_MALE
-from store.models import Category, FavoriteProduct, Notification, Product, ProductReview
-from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductReviewSerializer, \
+from store.filters import ProductFilter
+from store.models import Cart, Category, FavoriteProduct, Notification, Product, ProductReview, ProductReviewImage
+from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
+    ProductDetailSerializer, \
+    ProductReviewSerializer, \
     ProductSerializer
 
 
@@ -146,12 +149,13 @@ class AddProductReviewView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         product_id = data.get('id')
-        product = Product.categorized.filter(id=product_id)
-        if not product.exists():
-            return Response({"message": "This product does not exist, try again", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        product = product.get()
-        ProductReview.objects.create(customer=user, product=product, **data)
+        product = Product.categorized.get(id=product_id)
+        images = request.FILES.getlist('images')
+        if len(images) > 3:
+            return Response({"message": "The maximum number of allowed images is 3"})
+        product_review = ProductReview.objects.create(customer=user, product=product, **data)
+        for image in images:
+            ProductReviewImage.objects.create(product_review=product_review, image=image)
         return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
 
 
@@ -181,19 +185,51 @@ class CategoryListView(GenericAPIView):
                         status.HTTP_200_OK)
 
 
-class ProductsSearchView(GenericAPIView):
+class ProductsFilterView(ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    search_fields = ['name', 'description']
+    filterset_class = ProductFilter
+    search_fields = ['title', 'description']
+    queryset = Product.categorized.all()
 
-    def get(self, request):
-        products = Product.categorized.all()
-        search_query = self.request.query_params.get('search', None)
-        if search_query is not None:
-            products = products.filter(title__icontains=search_query) | products.filter(
-                    description__icontains=search_query)
-            if not products.exists():
-                return Response({"message": "Product not found", "status": "failed"}, status.HTTP_404_NOT_FOUND)
-        serializer = self.serializer_class(products, many=True)
+    def get(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
         return Response({"message": "All products fetched", "data": serializer.data, "status": "succeed"},
                         status.HTTP_200_OK)
+
+
+class CartItemView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AddCartItemSerializer
+
+    def get(self, request, *args, **kwargs):
+        cart_id = request.query_params.get('cart_id', None)
+        if not cart_id:
+            return Response({"message": "Cart ID not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            cart = Cart.objects.get(id=cart_id)
+        except Cart.DoesNotExist:
+            return Response({"message": "Cart not found", "status": "failed"},
+                            status=status.HTTP_404_NOT_FOUND)
+        serializer = CartItemSerializer(cart.items.all(), many=True)
+        return Response({"message": "Cart Items fetched successfully", "data": serializer.data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cart_item = serializer.save()
+
+        # Serialize the cart item object to a dictionary
+        cart_item_data = CartItemSerializer(cart_item).data
+        return Response(
+                {"message": "Cart item successfully added to the cart", "data": cart_item_data, "status": "succeed"},
+                status=status.HTTP_201_CREATED)
+
+    def update(self):
+        pass
+
+    def delete(self):
+        pass

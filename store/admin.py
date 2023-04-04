@@ -66,8 +66,8 @@ class ProductAdmin(admin.ModelAdmin):
         for product in product_images:
             html += '<img src="{url}" width="{width}" height="{height}" />'.format(
                     url=product.image.url,
-                    width=product.image.width,
-                    height=product.image.height,
+                    width=300,
+                    height=200,
             )
         return mark_safe(html)
 

@@ -135,11 +135,8 @@ WSGI_APPLICATION = "commista.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": config("DATABASE_NAME"),
-        "HOST": config("DATABASE_HOST"),
-        "USER": config("DATABASE_USER"),
-        "PASSWORD": config("DATABASE_PASSWORD"),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "commista.sqlite3"
     }
 }
 

@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairVi
 
 from core.emails import Util
 from core.models import User
+from core.permissions import IsNotAuthenticated
 from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, RegisterSerializer, \
     RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, ResendEmailVerificationSerializer, \
     VerifySerializer
@@ -151,7 +152,9 @@ class LoginView(TokenObtainPairView):
         if not user.is_active:
             return Response({"message": "Account is not active, contact the admin", "status": "failed"},
                             status=status.HTTP_400_BAD_REQUEST)
+
         tokens = super().post(request)
+        print(request.user.is_authenticated)
         return Response({"message": "Logged in successfully", "tokens": tokens.data,
                          "data": {"email": user.email, "full_name": user.full_name}, "status": "success"},
                         status=status.HTTP_200_OK)

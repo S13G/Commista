@@ -1,6 +1,5 @@
-import random
 import secrets
-import string
+from uuid import uuid4
 
 from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
@@ -81,7 +80,7 @@ class Product(BaseModel):
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
     location = models.ForeignKey(
             ItemLocation,
-            on_delete=models.PROTECT,
+            on_delete=models.SET_NULL,
             null=True,
             blank=False,
             related_name="products",
@@ -144,7 +143,7 @@ class FavoriteProduct(BaseModel):
             Customer, on_delete=models.CASCADE, related_name="favorite_products"
     )
     product = models.ForeignKey(
-            Product, on_delete=models.PROTECT, related_name="customer_favorites"
+            Product, on_delete=models.CASCADE, related_name="customer_favorites"
     )
 
     class Meta:
@@ -173,7 +172,7 @@ class SliderImage(BaseModel):
 
 class ProductReview(BaseModel):
     customer = models.ForeignKey(
-            Customer, on_delete=models.PROTECT, related_name="product_reviews"
+            Customer, on_delete=models.DO_NOTHING, related_name="product_reviews"
     )
     product = models.ForeignKey(
             Product, on_delete=models.CASCADE, related_name="product_reviews"
@@ -192,6 +191,13 @@ class ProductReviewImage(models.Model):
     image = models.ImageField(
             upload_to="store/images", validators=[validate_image_size]
     )
+
+    def image_url(self):
+        try:
+            url = self.image.url
+        except:
+            url = None
+        return url
 
 
 class Notification(BaseModel):
@@ -222,7 +228,8 @@ class CouponCode(BaseModel):
 
 class Order(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
-    transaction_ref = models.CharField(max_length=10, unique=True, editable=False)
+    transaction_ref = models.UUIDField(default=uuid4, unique=True,
+                                       editable=False)  # uuid is best for transaction references
     placed_at = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(
             max_length=1, choices=PAYMENT_STATUS, default=PAYMENT_PENDING
@@ -234,21 +241,17 @@ class Order(BaseModel):
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"
 
-    def save(self, *args, **kwargs):
-        if not self.pk:
-            self.transaction_ref = "".join(
-                    random.choices(string.ascii_uppercase + string.digits, k=10)
-            )
-        super().save(*args, **kwargs)
-
 
 class OrderItem(BaseModel):
-    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="items")
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="order_items", null=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(
-            Product, on_delete=models.PROTECT, related_name="orderitems"
+            Product, on_delete=models.CASCADE, related_name="orderitems"
     )
-    quantity = models.PositiveSmallIntegerField()
+    quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
+    size = models.CharField(max_length=20, null=True)
+    colour = models.CharField(max_length=20, null=True)
     ordered = models.BooleanField(default=False)
 
     def __str__(self):
@@ -258,33 +261,18 @@ class OrderItem(BaseModel):
 
 
 class Cart(BaseModel):
-    coupon_code = models.CharField(max_length=8, unique=True, null=True)
 
     def total_price(self):
-        total_price = sum(
-                item.product.price * item.product.quantity for item in self.items.all()
-        )
-        # Check if a coupon is applied to the cart
-        try:
-            coupon = CouponCode.objects.get(code=self.coupon_code)
-            total_price -= coupon.price
-        except CouponCode.DoesNotExist:
-            pass
-
+        total_price = sum((item.product.price * item.product.quantity for item in self.items.all()))
         return total_price
 
 
 class CartItem(BaseModel):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    size = models.CharField(max_length=20, null=True)
+    colour = models.CharField(max_length=20, null=True)
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                    fields=["cart", "product"], name="unique_cart_product"
-            )
-        ]
 
     def __str__(self):
         return f"Cart id({self.cart.id}) ---- {self.product.title} ---- {self.quantity}"
@@ -305,7 +293,7 @@ class Address(BaseModel):
     customer = models.ForeignKey(
             Customer, on_delete=models.CASCADE, related_name="addresses"
     )
-    country = models.ForeignKey(Country, on_delete=models.PROTECT)
+    country = models.ForeignKey(Country, on_delete=models.CASCADE)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     street_address = models.CharField(max_length=255)
