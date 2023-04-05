@@ -1,9 +1,7 @@
-import uuid
-
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Cart, CartItem, Colour, Product, ProductReview, Size
+from store.models import Cart, CartItem, Product, ProductReview
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -84,6 +82,23 @@ class CartSerializer(serializers.ModelSerializer):
         fields = ['id', 'items', 'total_price']
 
 
+def validate_cart_item(self, attrs):
+    product_id = attrs['product_id']
+    if not Product.objects.filter(id=product_id).exists():
+        raise serializers.ValidationError({"message": "No product with the given ID was found."})
+
+    product = Product.objects.get(id=product_id)
+    size = attrs.get('size', '')
+    if size and not product.size.filter(title=size).exists():
+        raise serializers.ValidationError({"message": "Size not found for the given product.", "status": "failed"})
+
+    colour = attrs.get('colour', '')
+    if colour and not product.colour.filter(name=colour).exists():
+        raise serializers.ValidationError({"message": "Colour not found for the given product.", "status": "failed"})
+
+    return attrs
+
+
 class AddCartItemSerializer(serializers.Serializer):
     cart_id = serializers.CharField(max_length=60, required=False, default=None)
     product_id = serializers.CharField(max_length=100)
@@ -92,19 +107,7 @@ class AddCartItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField()
 
     def validate(self, attrs):
-        product_id = attrs['product_id']
-        if not Product.objects.filter(id=product_id).exists():
-            raise serializers.ValidationError({"message": "No product with the given ID was found."})
-
-        product = Product.objects.get(id=product_id)
-        size = attrs.get('size', '')
-        if size and not product.size.filter(title=size).exists():
-            raise serializers.ValidationError({"message": "Size not found for the given product.", "status": False})
-
-        colour = attrs.get('colour', '')
-        if colour and not product.colour.filter(name=colour).exists():
-            raise serializers.ValidationError({"message": "Colour not found for the given product.", "status": False})
-
+        attrs = validate_cart_item(attrs)
         return attrs
 
     def save(self, **kwargs):
@@ -116,7 +119,7 @@ class AddCartItemSerializer(serializers.Serializer):
 
         if cart_id is None:
             cart = Cart.objects.create()
-            cart_id = cart.id
+            # cart_id = cart.id
         else:
             cart, _ = Cart.objects.get_or_create(id=cart_id)
 
@@ -135,4 +138,41 @@ class AddCartItemSerializer(serializers.Serializer):
 
 
 class UpdateCartItemSerializer(serializers.Serializer):
-    pass
+    cart_id = serializers.CharField(max_length=60, default=None)
+    product_id = serializers.CharField(max_length=100)
+    size = serializers.CharField(required=False)
+    colour = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        attrs = validate_cart_item(attrs)
+        return attrs
+
+    def save(self, **kwargs):
+        try:
+            cart = Cart.objects.get(id=self.validated_data['cart_id'])
+            product = Product.objects.get(id=self.validated_data['product_id'])
+            item = CartItem.objects.get(cart=cart, product=product)
+        except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
+            raise serializers.ValidationError(
+                    {"message": "Invalid cart or product ID. Please check the provided IDs.", "status": "failed"})
+        if self.validated_data.get('size'):
+            item.size = self.validated_data['size']
+        if self.validated_data.get('colour'):
+            item.colour = self.validated_data['colour']
+        item.save()
+        return item
+
+
+class DeleteCartItemSerializer(serializers.Serializer):
+    cart_id = serializers.CharField(max_length=60, required=True)
+    product_id = serializers.CharField(max_length=100, required=True)
+
+    def save(self, **kwargs):
+        try:
+            cart = Cart.objects.get(id=self.validated_data['cart_id'])
+            product = Product.objects.get(id=self.validated_data['product_id'])
+            item = CartItem.objects.get(cart=cart, product=product)
+        except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
+            raise serializers.ValidationError(
+                    {"message": "Invalid cart or product ID. Please check the provided IDs.", "status": "failed"})
+        item.delete()

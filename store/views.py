@@ -11,9 +11,9 @@ from store.choices import GENDER_FEMALE, GENDER_MALE
 from store.filters import ProductFilter
 from store.models import Cart, Category, FavoriteProduct, Notification, Product, ProductReview, ProductReviewImage
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
-    ProductDetailSerializer, \
+    DeleteCartItemSerializer, ProductDetailSerializer, \
     ProductReviewSerializer, \
-    ProductSerializer
+    ProductSerializer, UpdateCartItemSerializer
 
 
 # Create your views here.
@@ -228,8 +228,20 @@ class CartItemView(GenericAPIView):
                 {"message": "Cart item successfully added to the cart", "data": cart_item_data, "status": "succeed"},
                 status=status.HTTP_201_CREATED)
 
-    def update(self):
-        pass
+    def patch(self, request):
+        serializer = UpdateCartItemSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_cart_item = serializer.save()
 
-    def delete(self):
-        pass
+        # Serialize the cart item object to a dictionary
+        updated_cart_item_data = CartItemSerializer(updated_cart_item).data
+        return Response(
+                {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "succeed"},
+                status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        serializer = DeleteCartItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Item deleted successfully.", "status": "succeed"},
+                        status=status.HTTP_204_NO_CONTENT)
