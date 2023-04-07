@@ -136,7 +136,7 @@ WSGI_APPLICATION = "commista.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "commista.sqlite3"
+        "NAME": "commista.sqlite"
     }
 }
 
@@ -169,8 +169,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-AUTH_USER_MODEL = "core.User"
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
@@ -194,8 +192,6 @@ MEDIA_URL = "media/"
 
 MEDIA_ROOT = BASE_DIR / "static/media"
 
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
@@ -214,3 +210,10 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 EMAIL_PORT = 465
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# JAZZMIN
+JAZZMIN_UI_TWEAKS = {
+    # "theme": "minty",
+    "body_small_text": False,
+    "theme": "darkly",
+}

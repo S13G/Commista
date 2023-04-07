@@ -40,7 +40,7 @@ class Size(BaseModel):
 
 
 class Colour(BaseModel):
-    name = models.CharField(max_length=20)
+    name = models.CharField(max_length=20, unique=True)
     hex_code = models.CharField(max_length=20, unique=True)
 
     def __str__(self):
@@ -72,8 +72,8 @@ class Product(BaseModel):
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
     percentage_off = models.PositiveIntegerField(default=0)
-    size = models.ManyToManyField(Size)
-    colour = models.ManyToManyField(Colour)
+    # size = models.ManyToManyField(Size)
+    # colour = models.ManyToManyField(Colour)
     inventory = models.PositiveIntegerField()
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
@@ -116,7 +116,7 @@ class Product(BaseModel):
         if self.percentage_off > 0:
             discount = self.price - (self.price * self.percentage_off / 100)
             return discount
-        return "No discount price for this product for now"
+        return "Nil"
 
 
 class ProductImage(models.Model):
@@ -136,6 +136,44 @@ class ProductImage(models.Model):
         except:
             url = None
         return url
+
+
+class SizeInventory(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="size_inventory"
+    )
+    size = models.ForeignKey(
+        Size, on_delete=models.CASCADE, related_name="product_size"
+    )
+    quantity = models.IntegerField(default=0, blank=True)
+    extra_price = models.DecimalField(
+        max_digits=6, decimal_places=2, blank=True, null=True
+    )
+
+    class Meta:
+        verbose_name_plural = "Product Size & Inventories"
+
+    def __str__(self):
+        return self.product.title
+
+
+class ColorInventory(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="color_inventory"
+    )
+    colour = models.ForeignKey(
+        Colour, on_delete=models.CASCADE, related_name="product_color"
+    )
+    quantity = models.IntegerField(default=0, blank=True)
+    extra_price = models.DecimalField(
+        max_digits=6, decimal_places=2, blank=True, null=True
+    )
+
+    class Meta:
+        verbose_name_plural = "Product Color & Inventories"
+
+    def __str__(self):
+        return self.product.title
 
 
 class FavoriteProduct(BaseModel):

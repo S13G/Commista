@@ -1,10 +1,10 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import mark_safe
 
 from store.models import *
 
 # Register your models here.
-admin.site.register((Size, ItemLocation,))
+admin.site.register((Size, ItemLocation, SizeInventory, ColorInventory))
 
 
 @admin.register(Category)
@@ -25,15 +25,37 @@ class ColourAdmin(admin.ModelAdmin):
     search_fields = ("name", "hex_code",)
 
 
+class InventoryFilter(admin.SimpleListFilter):
+    title = "inventory"
+    parameter_name = "inventory"
+
+    def lookups(self, request, model_admin):
+        return [("<10", "Low")]
+
+    def queryset(self, request, queryset):
+        if self.value() == "<10":
+            return queryset.filter(inventory__lt=10)
+
+
 class ProductImageAdmin(admin.TabularInline):
     model = ProductImage
     extra = 2
     max_num = 3
 
 
+class SizeInventoryInline(admin.TabularInline):
+    model = SizeInventory
+    extra = 1
+
+
+class ColorInventoryInline(admin.TabularInline):
+    model = ColorInventory
+    extra = 1
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    inlines = (ProductImageAdmin,)
+    inlines = (ProductImageAdmin, SizeInventoryInline, ColorInventoryInline)
     list_display = (
         "title",
         "category",
@@ -47,6 +69,7 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "condition",
         "percentage_off",
+        InventoryFilter
     )
     list_per_page = 30
     list_select_related = ("category",)
@@ -70,6 +93,14 @@ class ProductAdmin(admin.ModelAdmin):
                     height=200,
             )
         return mark_safe(html)
+
+    @admin.action(description="Clear inventory")
+    def clear_inventory(self, request, queryset):
+        updated_count = queryset.update(inventory=0)
+        self.message_user(
+                request,
+                f"{updated_count} products were successfully updated.",
+                messages.ERROR, )
 
 
 @admin.register(FavoriteProduct)
