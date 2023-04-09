@@ -4,7 +4,7 @@ from django.utils.html import mark_safe
 from store.models import *
 
 # Register your models here.
-admin.site.register((Size, ItemLocation, SizeInventory, ColorInventory))
+admin.site.register((Size, ItemLocation,))
 
 
 @admin.register(Category)
@@ -13,7 +13,9 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ("title", "gender",)
     ordering = ("title", "gender",)
 
-    def products_count(self, obj):
+    @staticmethod
+    @admin.display(ordering='products_count')
+    def products_count(obj):
         return obj.products.count()
 
 
@@ -43,19 +45,14 @@ class ProductImageAdmin(admin.TabularInline):
     max_num = 3
 
 
-class SizeInventoryInline(admin.TabularInline):
-    model = SizeInventory
-    extra = 1
-
-
-class ColorInventoryInline(admin.TabularInline):
-    model = ColorInventory
+class ProductColorSizeInventoryInline(admin.TabularInline):
+    model = ProductColorSizeInventory
     extra = 1
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    inlines = (ProductImageAdmin, SizeInventoryInline, ColorInventoryInline)
+    inlines = (ProductImageAdmin, ProductColorSizeInventoryInline,)
     list_display = (
         "title",
         "category",
@@ -83,7 +80,8 @@ class ProductAdmin(admin.ModelAdmin):
             return "Low"
         return "High"
 
-    def product_images(self, obj):
+    @staticmethod
+    def product_images(obj):
         product_images = obj.images.all()
         html = ''
         for product in product_images:

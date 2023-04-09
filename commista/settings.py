@@ -213,7 +213,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # JAZZMIN
 JAZZMIN_UI_TWEAKS = {
-    # "theme": "minty",
+    "theme": "minty",
     "body_small_text": False,
-    "theme": "darkly",
+    # "theme": "darkly",
 }

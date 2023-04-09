@@ -5,7 +5,7 @@ from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import IntegrityError, models
 from django.db.models import Avg
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -72,8 +72,6 @@ class Product(BaseModel):
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
     percentage_off = models.PositiveIntegerField(default=0)
-    # size = models.ManyToManyField(Size)
-    # colour = models.ManyToManyField(Colour)
     inventory = models.PositiveIntegerField()
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
@@ -98,6 +96,11 @@ class Product(BaseModel):
 
     def clean(self):
         super().clean()
+        product_inventory = self.inventory
+        product_csi_iterable = self.product_color_size_inventory
+        total_quantity_sum = sum((product.quantity for product in product_csi_iterable.all()))
+        if self.pk is not None and total_quantity_sum > product_inventory:
+            raise ValidationError("Product CSI quantity should not be greater than product inventory")
         if (
                 self.flash_sale_start_date is not None
                 and self.flash_sale_end_date is not None
@@ -110,6 +113,23 @@ class Product(BaseModel):
                 and self.flash_sale_start_date == self.flash_sale_end_date
         ):
             raise ValidationError("Start date and end date cannot be equal.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            super().save(*args, **kwargs)
+        else:
+            # If the instance does not exist in the database,
+            # try to save it with `force_insert=True` to
+            # temporarily save the instance and check for validation errors
+            try:
+                kwargs['force_insert'] = True
+                super().save(*args, **kwargs)
+            except ValidationError as e:
+                raise e
+            except IntegrityError:
+                # Ignore the IntegrityError caused by force_insert=True and return a ValidationError instead
+                raise ValidationError("Product with this ID already exists in the database.")
+        super().save(*args, **kwargs)
 
     @property
     def discount_price(self):
@@ -138,42 +158,32 @@ class ProductImage(models.Model):
         return url
 
 
-class SizeInventory(models.Model):
+class ProductColorSizeInventory(models.Model):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="size_inventory"
+            Product, on_delete=models.CASCADE, related_name="product_color_size_inventory"
     )
+    colour = models.ForeignKey(Colour, on_delete=models.CASCADE, related_name="product_color")
     size = models.ForeignKey(
-        Size, on_delete=models.CASCADE, related_name="product_size"
+            Size, on_delete=models.CASCADE, related_name="product_size"
     )
     quantity = models.IntegerField(default=0, blank=True)
     extra_price = models.DecimalField(
-        max_digits=6, decimal_places=2, blank=True, null=True
+            max_digits=6, decimal_places=2, blank=True, null=True
     )
 
     class Meta:
-        verbose_name_plural = "Product Size & Inventories"
+        verbose_name_plural = "Product Color, Size & Inventories"
 
     def __str__(self):
         return self.product.title
 
-
-class ColorInventory(models.Model):
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="color_inventory"
-    )
-    colour = models.ForeignKey(
-        Colour, on_delete=models.CASCADE, related_name="product_color"
-    )
-    quantity = models.IntegerField(default=0, blank=True)
-    extra_price = models.DecimalField(
-        max_digits=6, decimal_places=2, blank=True, null=True
-    )
-
-    class Meta:
-        verbose_name_plural = "Product Color & Inventories"
-
-    def __str__(self):
-        return self.product.title
+    # def clean(self):
+    #     super().clean()
+    #     product_inventory = self.product.inventory
+    #     product_csi_iterable = self.product.product_color_size_inventory
+    #     total_quantity_sum = sum((product.quantity for product in product_csi_iterable.all()))
+    #     if self.product.id is not None and total_quantity_sum > product_inventory:
+    #         raise ValidationError("Product CSI quantity should not be greater than product inventory")
 
 
 class FavoriteProduct(BaseModel):
@@ -255,6 +265,9 @@ class CouponCode(BaseModel):
     expired = models.BooleanField(default=False)
     expiry_date = models.DateTimeField()
 
+    def __str__(self):
+        return self.code
+
     def save(self, *args, **kwargs):
         if not self.code:
             self.code = secrets.token_hex(4).upper()  # creates 8 letters
@@ -311,6 +324,13 @@ class CartItem(BaseModel):
     size = models.CharField(max_length=20, null=True)
     colour = models.CharField(max_length=20, null=True)
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                    fields=["cart", "product"], name="unique_cart_product"
+            )
+        ]
 
     def __str__(self):
         return f"Cart id({self.cart.id}) ---- {self.product.title} ---- {self.quantity}"
