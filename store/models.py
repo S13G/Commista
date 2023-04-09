@@ -5,7 +5,7 @@ from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import IntegrityError, models
+from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -96,11 +96,6 @@ class Product(BaseModel):
 
     def clean(self):
         super().clean()
-        product_inventory = self.inventory
-        product_csi_iterable = self.product_color_size_inventory
-        total_quantity_sum = sum((product.quantity for product in product_csi_iterable.all()))
-        if self.pk is not None and total_quantity_sum > product_inventory:
-            raise ValidationError("Product CSI quantity should not be greater than product inventory")
         if (
                 self.flash_sale_start_date is not None
                 and self.flash_sale_end_date is not None
@@ -113,23 +108,6 @@ class Product(BaseModel):
                 and self.flash_sale_start_date == self.flash_sale_end_date
         ):
             raise ValidationError("Start date and end date cannot be equal.")
-
-    def save(self, *args, **kwargs):
-        if self.pk:
-            super().save(*args, **kwargs)
-        else:
-            # If the instance does not exist in the database,
-            # try to save it with `force_insert=True` to
-            # temporarily save the instance and check for validation errors
-            try:
-                kwargs['force_insert'] = True
-                super().save(*args, **kwargs)
-            except ValidationError as e:
-                raise e
-            except IntegrityError:
-                # Ignore the IntegrityError caused by force_insert=True and return a ValidationError instead
-                raise ValidationError("Product with this ID already exists in the database.")
-        super().save(*args, **kwargs)
 
     @property
     def discount_price(self):
@@ -177,13 +155,13 @@ class ProductColorSizeInventory(models.Model):
     def __str__(self):
         return self.product.title
 
-    # def clean(self):
-    #     super().clean()
-    #     product_inventory = self.product.inventory
-    #     product_csi_iterable = self.product.product_color_size_inventory
-    #     total_quantity_sum = sum((product.quantity for product in product_csi_iterable.all()))
-    #     if self.product.id is not None and total_quantity_sum > product_inventory:
-    #         raise ValidationError("Product CSI quantity should not be greater than product inventory")
+    def clean(self):
+        super().clean()
+        product_inventory = self.product.inventory
+        product_csi_iterable = self.product.product_color_size_inventory
+        total_quantity_sum = sum((product.quantity for product in product_csi_iterable.all()))
+        if self.product.id is not None and total_quantity_sum > product_inventory:
+            raise ValidationError("Product CSI quantity should not be greater than product inventory")
 
 
 class FavoriteProduct(BaseModel):
