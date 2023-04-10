@@ -28,16 +28,15 @@ class ColourAdmin(admin.ModelAdmin):
 
 
 class InventoryFilter(admin.SimpleListFilter):
-    title = "inventory"
+    title = "Inventory"
     parameter_name = "inventory"
 
     def lookups(self, request, model_admin):
-        return [("<10", "Low")]
+        return [("<20", "Low")]
 
     def queryset(self, request, queryset):
-        if self.value() == "<10":
-            return queryset.filter(inventory__lt=10)
-
+        if self.value() == "<20":
+            return queryset.filter(product_color_size_inventory__quantity__lt=20)
 
 class ProductImageAdmin(admin.TabularInline):
     model = ProductImage
@@ -60,6 +59,7 @@ class ProductAdmin(admin.ModelAdmin):
         "percentage_off",
         "discount_price",
         "average_ratings",
+        "inventory",
         "inventory_status",
     )
     list_filter = (
@@ -74,8 +74,8 @@ class ProductAdmin(admin.ModelAdmin):
     readonly_fields = ("product_images",)
     search_fields = ("title", "category__name",)
 
-    @admin.display(ordering="inventory")
-    def inventory_status(self, obj):
+    @staticmethod
+    def inventory_status(obj):
         if obj.inventory < 10:
             return "Low"
         return "High"
@@ -92,15 +92,6 @@ class ProductAdmin(admin.ModelAdmin):
             )
         return mark_safe(html)
 
-    @admin.action(description="Clear inventory")
-    def clear_inventory(self, request, queryset):
-        updated_count = queryset.update(inventory=0)
-        self.message_user(
-                request,
-                f"{updated_count} products were successfully updated.",
-                messages.ERROR, )
-
-
 @admin.register(FavoriteProduct)
 class FavoriteProductAdmin(admin.ModelAdmin):
     list_display = ("customer", "product",)
@@ -115,7 +106,8 @@ class FavoriteProductAdmin(admin.ModelAdmin):
 class SliderImageAdmin(admin.ModelAdmin):
     list_display = ('image_id',)
 
-    def image_id(self, obj):
+    @staticmethod
+    def image_id(obj):
         return f"Image {str(obj.id)[:5]}"
 
 

@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Avg
+from django.db.models import Avg, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
 
@@ -57,7 +57,7 @@ class ItemLocation(BaseModel):
 class ProductsManager(models.Manager):
     def get_queryset(self):
         return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews', 'size',
-                                                                            'colour', 'images').filter(inventory__gt=0)
+                                                                            'colour', 'images')
 
 
 class Product(BaseModel):
@@ -72,7 +72,6 @@ class Product(BaseModel):
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
     percentage_off = models.PositiveIntegerField(default=0)
-    inventory = models.PositiveIntegerField()
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
@@ -93,6 +92,12 @@ class Product(BaseModel):
     def average_ratings(self):
         result = self.product_reviews.aggregate(Avg("ratings"))
         return result["ratings__avg"] or 0
+
+    @cached_property
+    def inventory(self):
+        result = self.product_color_size_inventory.aggregate(Sum("quantity"))
+        return result["quantity__sum"] or 0
+
 
     def clean(self):
         super().clean()
@@ -154,14 +159,6 @@ class ProductColorSizeInventory(models.Model):
 
     def __str__(self):
         return self.product.title
-
-    def clean(self):
-        super().clean()
-        product_inventory = self.product.inventory
-        product_csi_iterable = self.product.product_color_size_inventory
-        total_quantity_sum = sum((product.quantity for product in product_csi_iterable.all()))
-        if self.product.id is not None and total_quantity_sum > product_inventory:
-            raise ValidationError("Product CSI quantity should not be greater than product inventory")
 
 
 class FavoriteProduct(BaseModel):
