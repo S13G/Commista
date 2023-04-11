@@ -1,6 +1,11 @@
-from django.contrib import admin, messages
-from django.utils.html import mark_safe
+from urllib.parse import urlencode
 
+from django.contrib import admin, messages
+from django.db.models import Count
+from django.urls import reverse
+from django.utils.html import format_html, mark_safe
+
+from store.forms import ProductAdminForm
 from store.models import *
 
 # Register your models here.
@@ -13,10 +18,13 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ("title", "gender",)
     ordering = ("title", "gender",)
 
-    @staticmethod
-    @admin.display(ordering='products_count')
-    def products_count(obj):
-        return obj.products.count()
+    @admin.display(ordering="products_count")
+    def products_count(self, collection):
+        url = (reverse("admin:store_product_changelist") + "?" + urlencode({"collection__id": str(collection.id)}))
+        return format_html('<a href="{}">{} Products</a>', url, collection.products_count)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(products_count=Count("products"))
 
 
 @admin.register(Colour)
@@ -38,20 +46,27 @@ class InventoryFilter(admin.SimpleListFilter):
         if self.value() == "<20":
             return queryset.filter(product_color_size_inventory__quantity__lt=20)
 
+
 class ProductImageAdmin(admin.TabularInline):
     model = ProductImage
     extra = 2
     max_num = 3
 
 
-class ProductColorSizeInventoryInline(admin.TabularInline):
-    model = ProductColorSizeInventory
+class SizeInventoryInline(admin.TabularInline):
+    model = SizeInventory
+    extra = 1
+
+
+class ColourInventoryInline(admin.TabularInline):
+    model = ColourInventory
     extra = 1
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    inlines = (ProductImageAdmin, ProductColorSizeInventoryInline,)
+    inlines = (ProductImageAdmin, SizeInventoryInline, ColourInventoryInline)
+    form = ProductAdminForm
     list_display = (
         "title",
         "category",
@@ -80,6 +95,15 @@ class ProductAdmin(admin.ModelAdmin):
             return "Low"
         return "High"
 
+    @admin.action(description="Clear inventory")
+    def clear_inventory(self, request, queryset):
+        updated_count = queryset.update(inventory=0)
+        self.message_user(
+                request,
+                f"{updated_count} products were successfully updated.",
+                messages.ERROR,
+        )
+
     @staticmethod
     def product_images(obj):
         product_images = obj.images.all()
@@ -91,6 +115,7 @@ class ProductAdmin(admin.ModelAdmin):
                     height=200,
             )
         return mark_safe(html)
+
 
 @admin.register(FavoriteProduct)
 class FavoriteProductAdmin(admin.ModelAdmin):

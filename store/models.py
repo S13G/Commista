@@ -57,7 +57,7 @@ class ItemLocation(BaseModel):
 class ProductsManager(models.Manager):
     def get_queryset(self):
         return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews', 'size',
-                                                                            'colour', 'images')
+                                                                            'colour', 'images').filter(inventory__lt=10)
 
 
 class Product(BaseModel):
@@ -71,17 +71,13 @@ class Product(BaseModel):
     description = models.TextField()
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
+    inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
-    location = models.ForeignKey(
-            ItemLocation,
-            on_delete=models.SET_NULL,
-            null=True,
-            blank=False,
-            related_name="products",
-    )
+    location = models.ForeignKey(ItemLocation, on_delete=models.SET_NULL, null=True, blank=False,
+                                 related_name="products", )
     objects = models.Manager()
     categorized = ProductsManager()
 
@@ -93,14 +89,7 @@ class Product(BaseModel):
         result = self.product_reviews.aggregate(Avg("ratings"))
         return result["ratings__avg"] or 0
 
-    @cached_property
-    def inventory(self):
-        result = self.product_color_size_inventory.aggregate(Sum("quantity"))
-        return result["quantity__sum"] or 0
-
-
     def clean(self):
-        super().clean()
         if (
                 self.flash_sale_start_date is not None
                 and self.flash_sale_end_date is not None
@@ -114,12 +103,61 @@ class Product(BaseModel):
         ):
             raise ValidationError("Start date and end date cannot be equal.")
 
+        if ColourInventory.objects.filter(product__id=self.id).exists() or SizeInventory.objects.filter(
+                product_id=self.id).exists():
+            color_quantity = ColourInventory.objects.filter(product_id=self.id).aggregate(Sum('quantity'))[
+                                 'quantity__sum'] or 0
+            size_quantity = SizeInventory.objects.filter(product_id=self.id).aggregate(Sum('quantity'))[
+                                'quantity__sum'] or 0
+            if color_quantity + size_quantity > self.inventory:
+                raise ValidationError(
+                        'Total color and size total quantity cannot be greater than total inventory quantity')
+        super().clean()
+
     @property
     def discount_price(self):
         if self.percentage_off > 0:
             discount = self.price - (self.price * self.percentage_off / 100)
             return discount
         return "Nil"
+
+
+class ColourInventory(models.Model):
+    product = models.ForeignKey(
+            Product, on_delete=models.CASCADE, related_name="color_inventory"
+    )
+    colour = models.ForeignKey(
+            Colour, on_delete=models.CASCADE, related_name="product_color"
+    )
+    quantity = models.IntegerField(default=0, blank=True)
+    extra_price = models.DecimalField(
+            max_digits=6, decimal_places=2, blank=True, null=True
+    )
+
+    class Meta:
+        verbose_name_plural = "Product Color & Inventories"
+
+    def __str__(self):
+        return self.product.title
+
+
+class SizeInventory(models.Model):
+    product = models.ForeignKey(
+            Product, on_delete=models.CASCADE, related_name="size_inventory"
+    )
+    size = models.ForeignKey(
+            Size, on_delete=models.CASCADE, related_name="product_size"
+    )
+    quantity = models.IntegerField(default=0, blank=True)
+    extra_price = models.DecimalField(
+            max_digits=6, decimal_places=2, blank=True, null=True
+    )
+
+    class Meta:
+        verbose_name_plural = "Product Size & Inventories"
+
+    def __str__(self):
+        return self.product.title
 
 
 class ProductImage(models.Model):
@@ -139,26 +177,6 @@ class ProductImage(models.Model):
         except:
             url = None
         return url
-
-
-class ProductColorSizeInventory(models.Model):
-    product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="product_color_size_inventory"
-    )
-    colour = models.ForeignKey(Colour, on_delete=models.CASCADE, related_name="product_color")
-    size = models.ForeignKey(
-            Size, on_delete=models.CASCADE, related_name="product_size"
-    )
-    quantity = models.IntegerField(default=0, blank=True)
-    extra_price = models.DecimalField(
-            max_digits=6, decimal_places=2, blank=True, null=True
-    )
-
-    class Meta:
-        verbose_name_plural = "Product Color, Size & Inventories"
-
-    def __str__(self):
-        return self.product.title
 
 
 class FavoriteProduct(BaseModel):

@@ -1,15 +1,46 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Cart, CartItem, Product, ProductReview
+from store.models import Cart, CartItem, Colour, ColourInventory, Product, ProductReview, Size, SizeInventory
+
+
+class ColourSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Colour
+        fields = ['name', 'hex_code']
+
+
+class ColourInventorySerializer(serializers.ModelSerializer):
+    colour = ColourSerializer()
+
+    class Meta:
+        model = ColourInventory
+        fields = ['colour', 'quantity', 'extra_price']
+
+
+class SizeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Size
+        fields = ['title']
+
+
+class SizeInventorySerializer(serializers.ModelSerializer):
+    size = SizeSerializer()
+
+    class Meta:
+        model = SizeInventory
+        fields = ['size', 'quantity', 'extra_price']
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    sizes = SizeInventorySerializer(source='size_inventory', many=True, read_only=True)
+    colours = ColourInventorySerializer(source='colour_inventory', many=True, read_only=True)
     images = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'title', 'slug', 'category', 'description', 'style', 'price', 'percentage_off', 'images']
+        fields = ['id', 'title', 'slug', 'category', 'description', 'style', 'price', 'percentage_off', 'images',
+                  'colours', 'sizes']
 
     @staticmethod
     def get_images(obj):
@@ -17,8 +48,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ProductDetailSerializer(ProductSerializer):
-    colours = serializers.SerializerMethodField()
-    sizes = serializers.SerializerMethodField()
     inventory = serializers.IntegerField()
     condition = serializers.CharField()
     location = serializers.CharField()
@@ -27,16 +56,8 @@ class ProductDetailSerializer(ProductSerializer):
 
     class Meta:
         model = Product
-        fields = ProductSerializer.Meta.fields + ['sizes', 'colours', 'inventory', 'condition', 'location',
-                                                  'discount_price', 'average_ratings']
-
-    @staticmethod
-    def get_colours(obj):
-        return obj.colour.values('name', 'hex_code')
-
-    @staticmethod
-    def get_sizes(obj):
-        return obj.size.values_list('title', flat=True)
+        fields = ProductSerializer.Meta.fields + ['inventory', 'condition', 'location', 'discount_price',
+                                                  'average_ratings']
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
