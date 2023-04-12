@@ -1,0 +1,87 @@
+admin
+
+save  model
+#
+        # try:
+        #     # set the validated inventory value on the product instance
+        #     obj.inventory = inventory
+        #
+        #     ColourInventoryFormSet = inlineformset_factory(Product, ColourInventory, form=ColourInventoryForm, extra=0)
+        #     SizeInventoryFormSet = inlineformset_factory(Product, SizeInventory, form=SizeInventoryForm, extra=0)
+        #
+        #     # save the related colour inventory forms
+        #     color_formset = ColourInventoryFormSet(instance=obj, data=request.POST)
+        #     if color_formset.is_valid():
+        #         color_formset.save()
+        #
+        #     # save the related size inventory forms
+        #     size_formset = SizeInventoryFormSet(instance=obj, data=request.POST)
+        #     if size_formset.is_valid():
+        #         size_formset.save()
+        # except ValidationError as e:
+            # self.message_user(request, str(e), level='ERROR')
+
+
+forms.py
+
+
+
+    # @transaction.atomic
+    # def flash_date_validation(self):
+    #     print('I am here 1')
+    #     flash_sale_start_date = self.cleaned_data.get("flash_sale_start_date")
+    #     flash_sale_end_date = self.cleaned_data.get("flash_sale_end_date")
+    #     if (
+    #             flash_sale_start_date is not None
+    #             and flash_sale_end_date is not None
+    #             and flash_sale_end_date <= flash_sale_start_date
+    #     ):
+    #         print('I am here 2')
+    #         raise ValidationError("End date must greater than start date.")
+    #     elif (
+    #             flash_sale_start_date is not None
+    #             and flash_sale_end_date is not None
+    #             and flash_sale_start_date == flash_sale_end_date
+    #     ):
+    #         print('I am here 3')
+    #         raise ValidationError("Start date and end date cannot be equal.")
+    #     print('I am here 4')
+
+
+new:
+@transaction.atomic
+    def check_inventory(self):
+        product = self.instance
+        if not product:
+            if (
+                    not ColourInventory.objects.filter(product__title=self.data.get("title")).exists()
+                    or SizeInventory.objects.filter(product__title=self.data.get("title")).exists()
+            ):
+                # Get the inline formset for the ColourInventoryInline
+                ColourInventoryFormSet = inlineformset_factory(Product, ColourInventory, form=ColourInventoryForm,
+                                                               extra=0)
+                color_formset = ColourInventoryFormSet(instance=product, data=self.data)
+                color_total_quantity = 0
+                for form in color_formset:
+                    if form.is_valid():
+                        quantity = form.cleaned_data.get('quantity')
+                        # Calculate the total quantity for all ColourInventoryInline forms
+                        color_total_quantity += quantity
+
+                SizeInventoryFormSet = inlineformset_factory(Product, SizeInventory, form=SizeInventoryForm, extra=0)
+                size_formset = SizeInventoryFormSet(instance=product, data=self.data)
+                size_total_quantity = 0
+                for form in size_formset:
+                    if form.is_valid():
+                        quantity = form.cleaned_data.get('quantity')
+                        size_total_quantity += quantity
+                print(color_total_quantity + size_total_quantity, type())
+                if color_total_quantity + size_total_quantity > int(self.data.get("inventory")):
+                    self._errors.setdefault('inventory', ErrorList()).append(
+                            "Total color and size total quantity cannot be greater than total inventory quantity"
+                    )
+                    # return the form instance with the error message
+                    return self
+
+                    # if no error, return data
+                return self.data.get("inventory")

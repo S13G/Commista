@@ -180,8 +180,6 @@ STATIC_ROOT = str(BASE_DIR.joinpath("staticfiles"))
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-
 CLOUDINARY_STORAGE = {
     "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME"),
     "API_KEY": config("CLOUDINARY_API_KEY"),

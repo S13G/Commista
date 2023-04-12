@@ -1,8 +1,22 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from django.db.models import Sum
+from django.db import transaction
+from django.forms import inlineformset_factory
+from django.forms.utils import ErrorList
 
 from store.models import ColourInventory, Product, SizeInventory
+
+
+class ColourInventoryForm(forms.ModelForm):
+    class Meta:
+        model = ColourInventory
+        fields = '__all__'
+
+
+class SizeInventoryForm(forms.ModelForm):
+    class Meta:
+        model = SizeInventory
+        fields = '__all__'
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -10,35 +24,40 @@ class ProductAdminForm(forms.ModelForm):
         model = Product
         fields = '__all__'
 
-    def clean(self):
-        super().clean()
-        flash_sale_start_date = self.cleaned_data.get("flash_sale_start_date")
-        flash_sale_end_date = self.cleaned_data.get("flash_sale_end_date")
-        if (
-                flash_sale_start_date is not None
-                and flash_sale_end_date is not None
-                and flash_sale_end_date <= flash_sale_start_date
-        ):
-            raise ValidationError("End date must greater than start date.")
-        elif (
-                flash_sale_start_date is not None
-                and flash_sale_end_date is not None
-                and flash_sale_start_date == flash_sale_end_date
-        ):
-            raise ValidationError("Start date and end date cannot be equal.")
-
-        if self.instance is None:  # Only run validation on create, not update
+    @transaction.atomic
+    def check_inventory(self):
+        product = self.instance
+        if not product:
             if (
-                    ColourInventory.objects.filter(product__id=self.cleaned_data["id"]).exists()
-                    or SizeInventory.objects.filter(product_id=self.cleaned_data["id"]).exists()
+                    not ColourInventory.objects.filter(product__title=self.data.get("title")).exists()
+                    or SizeInventory.objects.filter(product__title=self.data.get("title")).exists()
             ):
-                color_quantity = ColourInventory.objects.filter(
-                        product_id=self.cleaned_data["id"]
-                ).aggregate(Sum("quantity"))["quantity__sum"] or 0
-                size_quantity = SizeInventory.objects.filter(
-                        product_id=self.cleaned_data["id"]
-                ).aggregate(Sum("quantity"))["quantity__sum"] or 0
-                if color_quantity + size_quantity > self.cleaned_data["inventory"]:
-                    raise ValidationError(
-                            "Total color and size total quantity cannot be greater than total inventory quantity"
-                    )
+                # Get the inline formset for the ColourInventoryInline
+                ColourInventoryFormSet = inlineformset_factory(Product, ColourInventory, form=ColourInventoryForm,
+                                                               extra=0)
+                color_formset = ColourInventoryFormSet(instance=product, data=self.data)
+                color_total_quantity = 0
+                for form in color_formset:
+                    if form.is_valid():
+                        quantity = form.cleaned_data.get('quantity')
+                        color_total_quantity += quantity
+
+                SizeInventoryFormSet = inlineformset_factory(Product, SizeInventory, form=SizeInventoryForm, extra=0)
+                size_formset = SizeInventoryFormSet(instance=product, data=self.data)
+                size_total_quantity = 0
+                for form in size_formset:
+                    if form.is_valid():
+                        quantity = form.cleaned_data.get('quantity')
+                        size_total_quantity += quantity
+
+                total_quantity = color_total_quantity + size_total_quantity
+                if total_quantity > int(self.data.get("inventory")):
+                    raise ValidationError('inventory',
+                                   "Total color and size total quantity cannot be greater than total inventory quantity")
+
+                # Return the form instance, either with errors or validated data
+                return self
+        else:
+            # Product already exists, no need to validate inventory
+            return self
+

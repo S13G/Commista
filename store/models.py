@@ -3,10 +3,9 @@ from uuid import uuid4
 
 from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Avg, Sum
+from django.db.models import Avg
 from django.utils import timezone
 from django.utils.functional import cached_property
 
@@ -73,11 +72,11 @@ class Product(BaseModel):
     price = models.DecimalField(max_digits=6, decimal_places=2)
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
-    flash_sale_start_date = models.DateTimeField(null=True, blank=True)
-    flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
     location = models.ForeignKey(ItemLocation, on_delete=models.SET_NULL, null=True, blank=False,
                                  related_name="products", )
+    flash_sale_start_date = models.DateTimeField(null=True, blank=True)
+    flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     objects = models.Manager()
     categorized = ProductsManager()
 
@@ -88,31 +87,6 @@ class Product(BaseModel):
     def average_ratings(self):
         result = self.product_reviews.aggregate(Avg("ratings"))
         return result["ratings__avg"] or 0
-
-    def clean(self):
-        if (
-                self.flash_sale_start_date is not None
-                and self.flash_sale_end_date is not None
-                and self.flash_sale_end_date <= self.flash_sale_start_date
-        ):
-            raise ValidationError("End date must greater than start date.")
-        elif (
-                self.flash_sale_start_date is not None
-                and self.flash_sale_end_date is not None
-                and self.flash_sale_start_date == self.flash_sale_end_date
-        ):
-            raise ValidationError("Start date and end date cannot be equal.")
-
-        if ColourInventory.objects.filter(product__id=self.id).exists() or SizeInventory.objects.filter(
-                product_id=self.id).exists():
-            color_quantity = ColourInventory.objects.filter(product_id=self.id).aggregate(Sum('quantity'))[
-                                 'quantity__sum'] or 0
-            size_quantity = SizeInventory.objects.filter(product_id=self.id).aggregate(Sum('quantity'))[
-                                'quantity__sum'] or 0
-            if color_quantity + size_quantity > self.inventory:
-                raise ValidationError(
-                        'Total color and size total quantity cannot be greater than total inventory quantity')
-        super().clean()
 
     @property
     def discount_price(self):

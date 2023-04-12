@@ -2,10 +2,11 @@ from urllib.parse import urlencode
 
 from django.contrib import admin, messages
 from django.db.models import Count
+from django.forms import inlineformset_factory
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 
-from store.forms import ProductAdminForm
+from store.forms import ColourInventoryForm, ProductAdminForm, SizeInventoryForm
 from store.models import *
 
 # Register your models here.
@@ -59,7 +60,8 @@ class SizeInventoryInline(admin.TabularInline):
 
 
 class ColourInventoryInline(admin.TabularInline):
-    model = ColourInventory
+    model = ColourInventory  #
+    form = ColourInventoryForm
     extra = 1
 
 
@@ -88,6 +90,28 @@ class ProductAdmin(admin.ModelAdmin):
     ordering = ("title", "category", "percentage_off",)
     readonly_fields = ("product_images",)
     search_fields = ("title", "category__name",)
+
+    def save_model(self, request, obj, form, change):
+        # check if the form instance has any errors
+        if form.errors:
+            # set the error message on the admin form
+            form.add_error(None, form.errors)
+            return
+
+        # Get the inline formset for the ColourInventoryInline
+        ColourInventoryFormSet = inlineformset_factory(Product, ColourInventory, form=ColourInventoryForm, extra=0)
+        color_formset = ColourInventoryFormSet(request.POST, instance=obj)
+
+        # Get the inline formset for the SizeInventoryInline
+        SizeInventoryFormSet = inlineformset_factory(Product, SizeInventory, form=SizeInventoryForm, extra=0)
+        size_formset = SizeInventoryFormSet(request.POST, instance=obj)
+
+        # Check inventory
+        form.check_inventory()
+        # Save the related objects first
+        color_formset.save()
+        size_formset.save()
+        obj.save()
 
     @staticmethod
     def inventory_status(obj):
