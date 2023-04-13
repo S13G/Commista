@@ -1,6 +1,8 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.forms import inlineformset_factory
+from django.forms.utils import ErrorList
 
 from store.models import ColourInventory, Product, SizeInventory
 
@@ -22,7 +24,6 @@ class ProductAdminForm(forms.ModelForm):
         model = Product
         fields = '__all__'
 
-    @transaction.atomic
     def check_inventory(self):
         product = self.instance
         if product.DoesNotExist or product is not None:
@@ -50,23 +51,22 @@ class ProductAdminForm(forms.ModelForm):
                     if form.is_valid():
                         quantity = form.cleaned_data.get('quantity')
                         size_total_quantity += quantity
-
                 total_quantity = color_total_quantity + size_total_quantity
                 if total_quantity > int(self.data.get("inventory")):
-                    return False
-                return True
+                   raise forms.ValidationError(
+                            "Total color and size total quantity cannot be greater than total inventory quantity")
         else:
             # Product already exists, no need to validate inventory
             return self.data.get('inventory')
 
-    def save(self, commit=True):
-        # Call the check_inventory method to validate the form data
-        form_valid = self.check_inventory()
-
-        if not form_valid:
-            # Add an error to the form instead of raising a ValidationError
-            self.add_error(None, "Total color and size total quantity cannot be greater than total inventory quantity")
-            return None
-
-        # Call the super().save() method to save the form data to the database
-        return super().save(commit=commit)
+    # def save(self, commit=True):
+    #     # Call the check_inventory method to validate the form data
+    #     form_valid = self.check_inventory()
+    #
+    #     if not form_valid:
+    #         # Add an error to the form instead of raising a ValidationError
+    #         self.add_error(None, "Total color and size total quantity cannot be greater than total inventory quantity")
+    #         return None
+    #
+    #     # Call the super().save() method to save the form data to the database
+    #     return super().save(commit=commit)

@@ -85,3 +85,29 @@ new:
 
                     # if no error, return data
                 return self.data.get("inventory")
+
+
+
+ # # obj = form.save(commit=False)
+        # # print(obj)
+        # print('i am here -1')
+        # obj.save()
+        # form.save_m2m()
+
+        # form_valid = form.check_inventory()
+        # print('i am here 1')
+        #
+        # # check if the form instance has any errors
+        # if not form_valid:
+        #     print('i am here 12')
+        #     # set the error message on the admin form
+        #     form.add_error(None, "Total color and size total quantity cannot be greater than total inventory quantity")
+        #     print('i am here 3')
+        #     return
+        #
+        #     # Save the model instance and the formset instances
+
+
+
+
+
