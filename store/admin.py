@@ -1,13 +1,11 @@
 from urllib.parse import urlencode
 
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
 from django.db.models import Count
-from django.forms import inlineformset_factory
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 
-from store.forms import ColourInventoryForm, ProductAdminForm, SizeInventoryForm
+from store.forms import ProductAdminForm
 from store.models import *
 
 # Register your models here.
@@ -22,7 +20,11 @@ class CategoryAdmin(admin.ModelAdmin):
 
     @admin.display(ordering="products_count")
     def products_count(self, collection):
-        url = (reverse("admin:store_product_changelist") + "?" + urlencode({"collection__id": str(collection.id)}))
+        url = (reverse("admin:store_product_changelist") 
+               + "?" 
+               + urlencode({"collection__id": str(collection.id)})
+            )
+        
         return format_html('<a href="{}">{} Products</a>', url, collection.products_count)
 
     def get_queryset(self, request):
@@ -62,59 +64,21 @@ class SizeInventoryInline(admin.TabularInline):
 
 class ColourInventoryInline(admin.TabularInline):
     model = ColourInventory  #
-    form = ColourInventoryForm
     extra = 1
-
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     inlines = (ProductImageAdmin, SizeInventoryInline, ColourInventoryInline)
     form = ProductAdminForm
-    list_display = ("title", "category", "price", "percentage_off", "discount_price", "average_ratings", "inventory",
-                    "inventory_status",)
+    list_display = ("title", "category", "price", "percentage_off", "discount_price", 
+                    "average_ratings", "inventory", "inventory_status",)
     list_filter = ("category", "condition", "percentage_off", InventoryFilter)
     list_per_page = 30
     list_select_related = ("category",)
     ordering = ("title", "category", "percentage_off",)
     readonly_fields = ("product_images",)
     search_fields = ("title", "category__name",)
-
-    # def save_form(self, request, form, change):
-    #     form_valid = form.check_inventory()
-    #     print(form_valid)
-    #     print('i am here 1')
-    #
-    #     # check if the form instance has any errors
-    #     if not form_valid:
-    #         print('i am here 12')
-    #         # set the error message on the admin form
-    #         form.add_error(None, "Total color and size total quantity cannot be greater than total inventory quantity")
-    #         print('i am here 3')
-    #         return
-    #     print('i am here 0')
-    #     super().save_form(request, form, change)
-
-    def save_model(self, request, obj, form, change):
-        inventory = form.check_inventory()
-        try:
-            # set the validated inventory value on the product instance
-            obj.inventory = inventory
-
-            ColourInventoryFormSet = inlineformset_factory(Product, ColourInventory, form=ColourInventoryForm, extra=0)
-            SizeInventoryFormSet = inlineformset_factory(Product, SizeInventory, form=SizeInventoryForm, extra=0)
-
-            # save the related colour inventory forms
-            color_formset = ColourInventoryFormSet(instance=obj, data=request.POST)
-            if color_formset.is_valid():
-                color_formset.save()
-
-            # save the related size inventory forms
-            size_formset = SizeInventoryFormSet(instance=obj, data=request.POST)
-            if size_formset.is_valid():
-                size_formset.save()
-        except ValidationError as e:
-            self.message_user(request, str(e), level='ERROR')
-
+    
     @staticmethod
     def inventory_status(obj):
         if obj.inventory < 10:
