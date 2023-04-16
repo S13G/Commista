@@ -13,51 +13,33 @@ class ProductAdminForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         product = self.instance
-        if product.DoesNotExist or product is not None:
-            if (
-                not ColourInventory.objects.filter(
-                    product__title=self.data.get("title")
-                ).exists()
-                or SizeInventory.objects.filter(
-                    product__title=self.data.get("title")
-                ).exists()
-            ):
-                # Get the inline formset for the ColourInventoryInline
-                ColourInventoryFormSet = inlineformset_factory(
-                    Product, ColourInventory, fields="__all__"
-                )
-                color_formset = ColourInventoryFormSet(instance=product, data=self.data)
-                color_total_quantity = 0
 
-                # Iterate over the formset to get each form since it's a generator class
-
-                # Get the inline formset for the SizeInventoryInline
-                SizeInventoryFormSet = inlineformset_factory(
-                    Product, SizeInventory, fields="__all__"
-                )
-                size_formset = SizeInventoryFormSet(instance=product, data=self.data)
-                size_total_quantity = 0
-
-                color_total_quantity = self.get_formset_total_quantity(color_formset)
-                size_total_quantity = self.get_formset_total_quantity(size_formset)
-
-                total_quantity = color_total_quantity + size_total_quantity
-                product_inventory = int(self.data.get("inventory"))
-
-                if total_quantity > product_inventory:
-                    self.add_error(
-                        None,
-                        ValidationError(
-                            "Total color and size quantities cannot be greater than product's inventory"
-                        ),
-                    )
-
-        else:
+        if not product:
             return cleaned_data
 
+        color_formset = self.get_inline_formset(ColourInventory, product, self.data)
+        size_formset = self.get_inline_formset(SizeInventory, product, self.data)
+
+        color_total_quantity = self.get_formset_total_quantity(color_formset)
+        size_total_quantity = self.get_formset_total_quantity(size_formset)
+
+        total_quantity = color_total_quantity + size_total_quantity
+        product_inventory = int(self.data.get("inventory"))
+
+        if total_quantity > product_inventory:
+            self.add_error(None, ValidationError(
+                    "Total color and size quantities cannot be greater than product's inventory"))
+
+        return cleaned_data
+
+    @staticmethod
+    def get_inline_formset(inline_model, instance, data):
+        inline_formset_factory = inlineformset_factory(Product, inline_model, fields="__all__")
+        return inline_formset_factory(instance=instance, data=data)
+
+    @staticmethod
     def get_formset_total_quantity(formset):
         total_quantity = 0
-
         for form in formset:
             if form.is_valid():
                 quantity = form.cleaned_data.get("quantity", 0)
