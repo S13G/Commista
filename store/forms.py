@@ -10,6 +10,7 @@ class ProductAdminForm(forms.ModelForm):
         model = Product
         fields = "__all__"
 
+    # This validates the product's size and colour total quantity to the product inventory
     def clean(self):
         cleaned_data = super().clean()
         product = self.instance

@@ -9,11 +9,13 @@ CONDITION_CHOICES = (
 )
 
 GENDER_ALL = "A"
+GENDER_KIDS = "K"
 GENDER_MALE = "M"
 GENDER_FEMALE = "F"
 
 GENDER_CHOICES = (
     (GENDER_ALL, "All"),
+    (GENDER_KIDS, "Kids"),
     (GENDER_MALE, "Male"),
     (GENDER_FEMALE, "Female"),
 )

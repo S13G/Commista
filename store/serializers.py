@@ -61,11 +61,11 @@ class ProductDetailSerializer(ProductSerializer):
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
-    customer_name = serializers.CharField(source='customer.name')
+    customer_name = serializers.CharField(source='customer.full_name')
 
     class Meta:
         model = ProductReview
-        fields = ('customer_name', 'ratings', 'description')
+        fields = ('customer_full_name', 'ratings', 'description')
 
 
 class AddProductReviewSerializer(serializers.ModelSerializer):
@@ -103,10 +103,10 @@ class CartSerializer(serializers.ModelSerializer):
         fields = ['id', 'items', 'total_price']
 
 
-def validate_cart_item(self, attrs):
+def validate_cart_item(attrs):
     product_id = attrs['product_id']
     if not Product.objects.filter(id=product_id).exists():
-        raise serializers.ValidationError({"message": "No product with the given ID was found."})
+        raise serializers.ValidationError({"message": "No product with the given ID was found.", "status": "failed"})
 
     product = Product.objects.get(id=product_id)
     size = attrs.get('size', '')
@@ -139,8 +139,7 @@ class AddCartItemSerializer(serializers.Serializer):
         quantity = self.validated_data.get('quantity')
 
         if cart_id is None:
-            cart = Cart.objects.create()
-            # cart_id = cart.id
+            cart = Cart.objects.get_or_create(defaults={})
         else:
             cart, _ = Cart.objects.get_or_create(id=cart_id)
 

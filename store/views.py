@@ -7,13 +7,12 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from store.choices import GENDER_FEMALE, GENDER_MALE
+from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE
 from store.filters import ProductFilter
 from store.models import Cart, Category, FavoriteProduct, Notification, Product, ProductReview, ProductReviewImage
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
-    DeleteCartItemSerializer, ProductDetailSerializer, \
-    ProductReviewSerializer, \
-    ProductSerializer, UpdateCartItemSerializer
+    DeleteCartItemSerializer, ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, \
+    UpdateCartItemSerializer
 
 
 # Create your views here.
@@ -57,9 +56,8 @@ class FavoriteProductsView(GenericAPIView):
                 "style": product.style,
                 "price": product.price,
                 "percentage_off": product.percentage_off,
-                "size": product.size.values_list("name", flat=True),
-                "colour": product.colour.values_list("name", flat=True),
-                "ratings": product.ratings,
+                "size": product.product_size.values_list("title", flat=True),
+                "colour": product.product_color.values_list("name", flat=True),
                 "inventory": product.inventory,
                 "flash_sale_start_date": product.flash_sale_start_date,
                 "flash_sale_end_date": product.flash_sale_end_date,
@@ -83,11 +81,9 @@ class FavoriteProductsView(GenericAPIView):
         try:
             product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
-            return Response({"message": "Invalid product id", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 
         favorite, created = FavoriteProduct.objects.get_or_create(customer=user, product=product)
-
         if created:
             return Response({"message": "Product added to favorites", "status": "success"},
                             status=status.HTTP_201_CREATED)
@@ -104,8 +100,7 @@ class FavoriteProductsView(GenericAPIView):
         try:
             product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
-            return Response({"message": "Invalid product id", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 
         FavoriteProduct.objects.filter(customer=user, product=product).delete()
         return Response({"message": "Product removed from favorite list", "status": "succeed"},
@@ -124,10 +119,10 @@ class ProductDetailView(GenericAPIView):
         product = Product.categorized.filter(id=product_id)
         if not product.exists():
             return Response({"message": "This product does not exist, try again", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_404_NOT_FOUND)
         product = product.get()
         related_products = product.category.products.exclude(id=product_id)[:10]
-        product_serializer = self.serializer_class(product)
+        product_serializer = self.get_serializer(product)
         related_products_serializer = ProductSerializer(related_products, many=True)
         product_reviews = product.product_reviews.select_related('customer')
         product_review_serializer = ProductReviewSerializer(product_reviews, many=True)
@@ -152,7 +147,8 @@ class AddProductReviewView(GenericAPIView):
         product = Product.categorized.get(id=product_id)
         images = request.FILES.getlist('images')
         if len(images) > 3:
-            return Response({"message": "The maximum number of allowed images is 3"})
+            return Response({"message": "The maximum number of allowed images is 3", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
         product_review = ProductReview.objects.create(customer=user, product=product, **data)
         for image in images:
             ProductReviewImage.objects.create(product_review=product_review, image=image)
@@ -169,7 +165,7 @@ class NotificationView(GenericAPIView):
         else:
             notifications = Notification.objects.filter(Q(customers__in=[user]) | Q(general=True)).values(
                     'notification_type', 'title', 'customers', 'description', 'created')
-        return Response({"message": "Notifications sent", "data": notifications, "status": "succeed"},
+        return Response({"message": "Notifications fetched", "data": notifications, "status": "succeed"},
                         status.HTTP_200_OK)
 
 
@@ -180,9 +176,10 @@ class CategoryListView(GenericAPIView):
         all_categories = Category.objects.values('id', 'title')
         women_categories = Category.objects.filter(gender=GENDER_MALE).values('id', 'title')
         men_categories = Category.objects.filter(gender=GENDER_FEMALE).values('id', 'title')
+        kids_categories = Category.objects.filter(gender=GENDER_KIDS).values('id', 'title')
         return Response({"message": "All categories fetched", "all_categories": all_categories,
-                         "men_categories": men_categories, "women_categories": women_categories, "status": "succeed"},
-                        status.HTTP_200_OK)
+                         "men_categories": men_categories, "women_categories": women_categories,
+                         "kids_categories": kids_categories, "status": "succeed"}, status.HTTP_200_OK)
 
 
 class ProductsFilterView(ListAPIView):
@@ -195,8 +192,8 @@ class ProductsFilterView(ListAPIView):
 
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({"message": "All products fetched", "data": serializer.data, "status": "succeed"},
+        serializer = self.serializer_class(queryset, many=True)
+        return Response({"message": "Products filtered successfully", "data": serializer.data, "status": "succeed"},
                         status.HTTP_200_OK)
 
 
@@ -214,7 +211,7 @@ class CartItemView(GenericAPIView):
             return Response({"message": "Cart not found", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
         serializer = CartItemSerializer(cart.items.all(), many=True)
-        return Response({"message": "Cart Items fetched successfully", "data": serializer.data, "status": "succeed"},
+        return Response({"message": "Cart items retrieved successfully", "data": serializer.data, "status": "succeed"},
                         status=status.HTTP_200_OK)
 
     def post(self, request):
