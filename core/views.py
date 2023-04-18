@@ -10,7 +10,6 @@ from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairVi
 
 from core.emails import Util
 from core.models import User
-from core.permissions import IsNotAuthenticated
 from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, RegisterSerializer, \
     RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, ResendEmailVerificationSerializer, \
     VerifySerializer
@@ -43,7 +42,7 @@ class ChangeEmailView(GenericAPIView):
         code = serializer.validated_data['code']
         new_email = serializer.validated_data['email']
         try:
-            user = User.objects.get()
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         otp = user.otp.first()
@@ -97,7 +96,7 @@ class ChangePasswordView(GenericAPIView):
         code = serializer.validated_data['code']
         password = serializer.validated_data['password']
         try:
-            user = User.objects.get()
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         otp = user.otp.first()
@@ -246,7 +245,7 @@ class RequestEmailChangeCodeView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         email = request.data.get('email')
         try:
-            user = User.objects.get()
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         Util.email_change(user)
@@ -273,7 +272,7 @@ class ResendEmailVerificationView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         email = request.data.get('email')
         try:
-            user = User.objects.get()
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         if user.is_verified:
@@ -307,7 +306,7 @@ class RequestNewPasswordCodeView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         email = request.data.get('email')
         try:
-            user = User.objects.get()
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         if not user.is_verified:
@@ -339,7 +338,7 @@ class VerifyEmailView(GenericAPIView):
         email = request.data.get("email")
         code = request.data.get("code")
         try:
-            user = User.objects.get()
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 

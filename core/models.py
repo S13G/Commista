@@ -4,9 +4,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
+from common.models import BaseModel
 from core.choices import GENDER_CHOICES
 from core.validators import validate_full_name, validate_phone_number
-from common.models import BaseModel
 from .managers import CustomUserManager
 
 
@@ -45,5 +45,7 @@ class Otp(BaseModel):
         return f"{self.user.full_name} ----- {self.code}"
 
     def save(self, *args, **kwargs):
-        self.expired = self.expiry_date >= timezone.now() + timezone.timedelta(minutes=20)
+        if timezone.now() + timezone.timedelta(minutes=15) > self.expiry_date:
+            self.expired = True
+            self.delete()
         super(Otp, self).save(*args, **kwargs)

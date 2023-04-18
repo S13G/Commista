@@ -75,6 +75,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 30,
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "NON_FIELD_ERRORS_KEY": "message",
 }
 
 SPECTACULAR_SETTINGS = {
@@ -90,6 +91,7 @@ INTERNAL_IPS = [
 ]
 
 SIMPLE_JWT = {
+    "AUTH_HEADER_TYPES": ("Bearer",),
     "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
 }
 
