@@ -67,8 +67,8 @@ class FavoriteProductsView(GenericAPIView):
                 "location": product.location.name,
                 "discount_price": product.discount_price,
                 "average_ratings": product.average_ratings,
-                "images": [image.image_url for image in product.images.all()]
-            } for product in favorite_products.all()
+                "images": [image.image for image in product.images.all()]
+            } for product in favorite_products
         ]
         return Response({"message": "All favorite products fetched", "data": data, "status": "success"},
                         status=status.HTTP_200_OK)
@@ -153,7 +153,7 @@ class AddProductReviewView(GenericAPIView):
                             status=status.HTTP_400_BAD_REQUEST)
         product_review = ProductReview.objects.create(customer=user, product=product, **data)
         for image in images:
-            ProductReviewImage.objects.create(product_review=product_review, image=image)
+            ProductReviewImage.objects.create(product_review=product_review, _image=image)
         return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
 
 

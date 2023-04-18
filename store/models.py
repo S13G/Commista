@@ -1,5 +1,4 @@
 import secrets
-from uuid import uuid4
 
 from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
@@ -8,6 +7,7 @@ from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
 from django.utils.functional import cached_property
+from rest_framework.exceptions import ValidationError
 
 from common.models import BaseModel
 from core.validators import validate_phone_number
@@ -18,6 +18,11 @@ from store.validators import validate_image_size
 # Create your models here.
 
 Customer = get_user_model()
+
+
+def upload_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/store/instance_id/<filename>
+    return f"store/{instance.id}/{filename}"
 
 
 class Category(BaseModel):
@@ -148,19 +153,18 @@ class ProductImage(models.Model):
     product = models.ForeignKey(
             Product, on_delete=models.CASCADE, related_name="images"
     )
-    image = models.ImageField(
-            upload_to="store/images", validators=[validate_image_size]
+    _image = models.ImageField(
+            upload_to=upload_path, validators=[validate_image_size]
     )
 
     def __str__(self):
         return self.product.title
 
-    def image_url(self):
-        try:
-            url = self.image.url
-        except:
-            url = None
-        return url
+    @property
+    def image(self):
+        if self._image is not None:
+            return self._image.url
+        return None
 
 
 class FavoriteProduct(BaseModel):
@@ -184,19 +188,18 @@ class FavoriteProduct(BaseModel):
 
 
 class SliderImage(BaseModel):
-    image = models.ImageField(
-            upload_to="slider_images/", validators=[validate_image_size]
+    _image = models.ImageField(
+            upload_to=upload_path, validators=[validate_image_size]
     )
 
     class Meta:
         ordering = ('-created',)
 
-    def image_url(self):
-        try:
-            url = self.image.url
-        except:
-            url = None
-        return url
+    @property
+    def slider_image(self):
+        if self._image is not None:
+            return self._image.url
+        return None
 
 
 class ProductReview(BaseModel):
@@ -220,16 +223,15 @@ class ProductReviewImage(models.Model):
     product_review = models.ForeignKey(
             ProductReview, on_delete=models.CASCADE, related_name="product_review_images"
     )
-    image = models.ImageField(
-            upload_to="store/images", validators=[validate_image_size]
+    _image = models.ImageField(
+            upload_to=upload_path, validators=[validate_image_size]
     )
 
-    def image_url(self):
-        try:
-            url = self.image.url
-        except:
-            url = None
-        return url
+    @property
+    def review_image(self):
+        if self._image is not None:
+            return self._image.url
+        return None
 
 
 class Notification(BaseModel):
@@ -264,6 +266,10 @@ class CouponCode(BaseModel):
 
         if self.expiry_date and timezone.now() > self.expiry_date:
             self.expired = True
+
+            # ensure expiry date is always in the future
+        if self.expiry_date < timezone.now():
+            raise ValidationError('Expiry date must be in the future.')
         super().save(*args, **kwargs)
 
 
@@ -284,7 +290,6 @@ class Order(BaseModel):
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"
-
 
 
 class OrderItem(BaseModel):

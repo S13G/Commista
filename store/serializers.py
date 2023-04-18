@@ -45,8 +45,8 @@ class ProductSerializer(serializers.ModelSerializer):
                   'colours', 'sizes']
 
     @staticmethod
-    def get_images(obj):
-        return [image.image_url() for image in obj.images.all()]
+    def get_images(obj: Product):
+        return [image.image() for image in obj.images.all()]
 
 
 class ProductDetailSerializer(ProductSerializer):
@@ -225,9 +225,10 @@ class CreateOrderSerializer(serializers.Serializer):
         return order
 
     def to_representation(self, instance: Order):
-        items = instance.items.values_list('id', 'product__id', 'quantity')
+        items = instance.items.values_list('id', 'product__id', 'product__title', 'quantity')
         return {'id': instance.id, 'customer': instance.customer.full_name,
                 'transaction_reference"': instance.transaction_ref, 'total_price': instance.total_price,
                 'placed_at': instance.placed_at, 'shipping_status': instance.shipping_status,
                 'payment_status': instance.payment_status,
-                'items': [{'id': item[0], 'product': item[1], 'quantity': item[2]} for item in items]}
+                'items': [{'id': item[0], 'product_id': item[1], 'product__title': item[2], 'quantity': item[3]} for
+                          item in items]}
