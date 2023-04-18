@@ -12,8 +12,8 @@ class ChangeEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate(self, attrs):
-        code = attrs.get('code', '')
-        email = attrs.get('email', '')
+        code = attrs.get('code')
+        email = attrs.get('email')
 
         # validate code
         if not code:
@@ -36,7 +36,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=50, min_length=6, write_only=True)
 
     def validate(self, attrs):
-        code = attrs.get('code', '')
+        code = attrs.get('code')
 
         # validate code
         if not code:
@@ -53,7 +53,7 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=150, min_length=6, write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
+        email = attrs.get('email')
 
         # validate email
         try:
@@ -70,8 +70,8 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=50, min_length=6, write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
-        full_name = attrs.get('full_name', '')
+        email = attrs.get('email')
+        full_name = attrs.get('full_name')
 
         # validate email
         try:
@@ -95,7 +95,7 @@ class RequestEmailChangeCodeSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
+        email = attrs.get('email')
 
         # validate email
         try:
@@ -109,7 +109,7 @@ class RequestNewPasswordCodeSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
+        email = attrs.get('email')
 
         # validate email
         try:
@@ -123,7 +123,7 @@ class ResendEmailVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
+        email = attrs.get('email')
 
         # validate email
         try:
@@ -138,8 +138,8 @@ class VerifySerializer(serializers.Serializer):
     code = serializers.IntegerField()
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
-        code = attrs.get('code', '')
+        email = attrs.get('email')
+        code = attrs.get('code')
 
         # validate email
         try:

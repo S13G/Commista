@@ -25,7 +25,7 @@ class ProductAdminForm(forms.ModelForm):
         size_total_quantity = self.get_formset_total_quantity(size_formset)
 
         total_quantity = color_total_quantity + size_total_quantity
-        product_inventory = int(self.data.get("inventory"))
+        product_inventory = int(self.data.get("inventory", ))
 
         if total_quantity > product_inventory:
             self.add_error(None, ValidationError(
@@ -43,6 +43,6 @@ class ProductAdminForm(forms.ModelForm):
         total_quantity = 0
         for form in formset:
             if form.is_valid():
-                quantity = form.cleaned_data.get("quantity", 0)
+                quantity = form.cleaned_data.get("quantity")
                 total_quantity += quantity
         return total_quantity

@@ -12,7 +12,7 @@ from core.models import Otp, User
 
 def send_otp_email(user, subject, template_name, code_expiry_time):
     try:
-        user = User.objects.get(id=user.id)
+        user = User.objects.get()
     except User.DoesNotExist:
         warnings.warn(f"User with this id {user.id} does not exist")
         return

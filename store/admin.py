@@ -188,6 +188,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ("payment_status", "shipping_status",)
     list_per_page = 30
     ordering = ("customer", "transaction_ref", "payment_status", "shipping_status", "placed_at",)
+    readonly_fields = ("transaction_ref",)
     search_fields = ("customer__full_name", "transaction_ref", "payment_status", "shipping_status")
 
 

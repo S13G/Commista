@@ -269,9 +269,9 @@ class CouponCode(BaseModel):
 
 class Order(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
-    transaction_ref = models.UUIDField(default=uuid4, unique=True,
-                                       editable=False)  # uuid is best for transaction references
+    transaction_ref = models.CharField(max_length=12, default=secrets.token_urlsafe, unique=True)
     placed_at = models.DateTimeField(auto_now_add=True)
+    total_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     payment_status = models.CharField(
             max_length=1, choices=PAYMENT_STATUS, default=PAYMENT_PENDING
     )
@@ -284,6 +284,7 @@ class Order(BaseModel):
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"
+
 
 
 class OrderItem(BaseModel):

@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Cart, CartItem, Colour, ColourInventory, Product, ProductReview, Size, SizeInventory
+from store.models import Cart, CartItem, Colour, ColourInventory, CouponCode, Order, OrderItem, Product, ProductReview, \
+    Size, SizeInventory
 
 
 class ColourSerializer(serializers.ModelSerializer):
@@ -78,7 +79,7 @@ class AddProductReviewSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_id(value):
         if not Product.categorized.filter(id=value).exists():
-            raise ValidationError("This product does not exist, try again")
+            raise ValidationError({"message": "This product does not exist, try again", "status": "failed"})
         return value
 
 
@@ -108,12 +109,12 @@ def validate_cart_item(attrs):
     if not Product.objects.filter(id=product_id).exists():
         raise serializers.ValidationError({"message": "No product with the given ID was found.", "status": "failed"})
 
-    product = Product.objects.get(id=product_id)
-    size = attrs.get('size', '')
+    product = Product.objects.get()
+    size = attrs.get('size')
     if size and not product.size.filter(title=size).exists():
         raise serializers.ValidationError({"message": "Size not found for the given product.", "status": "failed"})
 
-    colour = attrs.get('colour', '')
+    colour = attrs.get('colour')
     if colour and not product.colour.filter(name=colour).exists():
         raise serializers.ValidationError({"message": "Colour not found for the given product.", "status": "failed"})
 
@@ -123,8 +124,8 @@ def validate_cart_item(attrs):
 class AddCartItemSerializer(serializers.Serializer):
     cart_id = serializers.CharField(max_length=60, required=False, default=None)
     product_id = serializers.CharField(max_length=100)
-    size = serializers.CharField(required=False)
-    colour = serializers.CharField(required=False)
+    size = serializers.CharField(required=False, allow_blank=True)
+    colour = serializers.CharField(required=False, allow_blank=True)
     quantity = serializers.IntegerField()
 
     def validate(self, attrs):
@@ -132,10 +133,10 @@ class AddCartItemSerializer(serializers.Serializer):
         return attrs
 
     def save(self, **kwargs):
-        product = Product.objects.get(id=self.validated_data['product_id'])
+        product = Product.objects.get()
         cart_id = self.validated_data.get('cart_id')
-        size = self.validated_data.get('size', None)
-        colour = self.validated_data.get('colour', None)
+        size = self.validated_data.get('size')
+        colour = self.validated_data.get('colour')
         quantity = self.validated_data.get('quantity')
 
         if cart_id is None:
@@ -160,8 +161,8 @@ class AddCartItemSerializer(serializers.Serializer):
 class UpdateCartItemSerializer(serializers.Serializer):
     cart_id = serializers.CharField(max_length=60, default=None)
     product_id = serializers.CharField(max_length=100)
-    size = serializers.CharField(required=False)
-    colour = serializers.CharField(required=False)
+    size = serializers.CharField(required=False, allow_blank=True)
+    colour = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
         attrs = validate_cart_item(attrs)
@@ -170,7 +171,7 @@ class UpdateCartItemSerializer(serializers.Serializer):
     def save(self, **kwargs):
         try:
             cart = Cart.objects.get(id=self.validated_data['cart_id'])
-            product = Product.objects.get(id=self.validated_data['product_id'])
+            product = Product.objects.get()
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
             raise serializers.ValidationError(
@@ -190,9 +191,42 @@ class DeleteCartItemSerializer(serializers.Serializer):
     def save(self, **kwargs):
         try:
             cart = Cart.objects.get(id=self.validated_data['cart_id'])
-            product = Product.objects.get(id=self.validated_data['product_id'])
+            product = Product.objects.get()
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
             raise serializers.ValidationError(
                     {"message": "Invalid cart or product ID. Please check the provided IDs.", "status": "failed"})
         item.delete()
+
+
+class CreateOrderSerializer(serializers.Serializer):
+    coupon_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
+
+    def save(self, **kwargs):
+        customer = self.context['request'].user
+        coupon_code = self.validated_data.get('coupon_code')
+        cart = Cart.objects.get(customer=customer)
+        order = Order.objects.create(customer=customer, total_price=cart.total_price)
+
+        if coupon_code:
+            try:
+                coupon = CouponCode.objects.get(code=coupon_code)
+                if not coupon.expired:
+                    coupon_discount = coupon.price
+                    order.total_price = - coupon_discount
+            except CouponCode.DoesNotExist:
+                raise ValidationError({"message": "Invalid coupon code", "status": "failed"})
+
+        for item in cart.items.all():
+            OrderItem.objects.create(customer=customer, order=order, product=item.product, quantity=item.quantity,
+                                     size=item.size, colour=item.colour)
+        cart.delete()
+        return order
+
+    def to_representation(self, instance: Order):
+        return {'id': instance.id, 'customer': instance.customer.email,
+                'transaction_reference"': instance.transaction_ref, 'total_price': instance.total_price,
+                'placed_at': instance.placed_at, 'shipping_status': instance.shipping_status,
+                'payment_status': instance.payment_status,
+                'items': [{'id': item.id, 'product': item.product.id, 'quantity': item.quantity} for item in
+                          instance.items.all()]}

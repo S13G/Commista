@@ -51,7 +51,7 @@ class Authentication(APITestCase):
         registration_response = self.client.post(self.registration_url, self.user_data, format="json")
         self.assertEqual(registration_response.status_code, status.HTTP_201_CREATED)
         # Below are variables being used by other functions
-        self.user = self.User.objects.get(email=registration_response.data["data"]["email"])
+        self.user = self.User.objects.get()
         self.generated_code = Otp.objects.create(user=self.user, code=self.code, expiry_date=self.expiry_date)
 
     def test_user_can_register_with_data_and_cannot_authenticate_with_incorrect_verification_code(self):
@@ -93,7 +93,7 @@ class Authentication(APITestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             # Below are values used by others
             self.logout_user_response = response
-            self.login_response = self.User.objects.get(email=response.data["data"]["email"])
+            self.login_response = self.User.objects.get()
 
     def test_get_authenticated_user_token_credentials(self):
         self.test_user_can_login_with_verified_email()
