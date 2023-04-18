@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -204,29 +205,29 @@ class CreateOrderSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         customer = self.context['request'].user
-        coupon_code = self.validated_data.get('coupon_code')
-        cart = Cart.objects.get(customer=customer)
-        order = Order.objects.create(customer=customer, total_price=cart.total_price)
+        coupon_code = self.validated_data.get('coupon_code', '')
+        cart = Cart.objects.select_for_update().get(customer=customer)
 
-        if coupon_code:
+        with transaction.atomic():
             try:
-                coupon = CouponCode.objects.get(code=coupon_code)
-                if not coupon.expired:
-                    coupon_discount = coupon.price
-                    order.total_price = - coupon_discount
+                coupon = CouponCode.objects.get(code=coupon_code, expired=False)
+                coupon_discount = coupon.price
             except CouponCode.DoesNotExist:
                 raise ValidationError({"message": "Invalid coupon code", "status": "failed"})
 
-        for item in cart.items.all():
-            OrderItem.objects.create(customer=customer, order=order, product=item.product, quantity=item.quantity,
-                                     size=item.size, colour=item.colour)
-        cart.delete()
+            order = Order.objects.create(customer=customer, total_price=cart.total_price - coupon_discount)
+            order.transaction_ref = f"TR-{order.transaction_ref}"
+
+            for item in cart.items.all():
+                OrderItem.objects.create(customer=customer, order=order, product=item.product, quantity=item.quantity,
+                                         size=item.size, colour=item.colour)
+            cart.delete()
         return order
 
     def to_representation(self, instance: Order):
-        return {'id': instance.id, 'customer': instance.customer.email,
+        items = instance.items.values_list('id', 'product__id', 'quantity')
+        return {'id': instance.id, 'customer': instance.customer.full_name,
                 'transaction_reference"': instance.transaction_ref, 'total_price': instance.total_price,
                 'placed_at': instance.placed_at, 'shipping_status': instance.shipping_status,
                 'payment_status': instance.payment_status,
-                'items': [{'id': item.id, 'product': item.product.id, 'quantity': item.quantity} for item in
-                          instance.items.all()]}
+                'items': [{'id': item[0], 'product': item[1], 'quantity': item[2]} for item in items]}
