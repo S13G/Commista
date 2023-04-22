@@ -12,7 +12,7 @@ from .managers import CustomUserManager
 
 def upload_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/customer/instance_id/<filename>
-    return f"customer/{instance.id}/{filename}"
+    return f"customer/{instance.id[:5]}/{filename}"
 
 
 class User(AbstractUser):
@@ -50,13 +50,14 @@ class Otp(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp")
     code = models.PositiveIntegerField(null=True)
     expired = models.BooleanField(default=False)
-    expiry_date = models.DateTimeField(null=True, auto_now_add=True)
+    expiry_date = models.DateTimeField(null=True, auto_now_add=True, editable=False)
 
     def __str__(self):
         return f"{self.user.full_name} ----- {self.code}"
 
     def save(self, *args, **kwargs):
-        if timezone.now() + timezone.timedelta(minutes=15) > self.expiry_date:
+        self.expiry_date += timezone.timedelta(minutes=15)
+        if timezone.now() == self.expiry_date:
             self.expired = True
             self.delete()
         super(Otp, self).save(*args, **kwargs)

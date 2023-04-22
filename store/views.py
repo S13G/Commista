@@ -12,7 +12,8 @@ from store.filters import ProductFilter
 from store.models import Cart, Category, FavoriteProduct, Notification, Order, Product, ProductReview, \
     ProductReviewImage
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
-    CreateOrderSerializer, DeleteCartItemSerializer, ProductDetailSerializer, ProductReviewSerializer, \
+    CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, ProductDetailSerializer, \
+    ProductReviewSerializer, \
     ProductSerializer, \
     UpdateCartItemSerializer
 
@@ -42,35 +43,16 @@ class CategoryAndSalesView(GenericAPIView):
 
 class FavoriteProductsView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = FavoriteProductSerializer
 
     def get(self, request):
         user = self.request.user
         if user is None:
             return Response({"message": "User does not exist", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
-        favorite_products = FavoriteProduct.objects.filter(customer=user)
-
-        data = [
-            {
-                "title": product.title,
-                "slug": product.slug,
-                "category": product.category.name,
-                "description": product.description,
-                "style": product.style,
-                "price": product.price,
-                "percentage_off": product.percentage_off,
-                "size": product.product_size.values_list("title", flat=True),
-                "colour": product.product_color.values_list("name", flat=True),
-                "inventory": product.inventory,
-                "flash_sale_start_date": product.flash_sale_start_date,
-                "flash_sale_end_date": product.flash_sale_end_date,
-                "condition": product.condition,
-                "location": product.location.name,
-                "discount_price": product.discount_price,
-                "average_ratings": product.average_ratings,
-                "images": [image.image for image in product.images.all()]
-            } for product in favorite_products
-        ]
-        return Response({"message": "All favorite products fetched", "data": data, "status": "success"},
+        favorite_products = FavoriteProduct.objects.filter(customer=user).select_related('product').prefetch_related(
+            'product__color_inventory__colour', 'product__size_inventory__size', 'product__images')
+        serializer = self.serializer_class(favorite_products, many=True)
+        return Response({"message": "All favorite products fetched", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -81,7 +63,7 @@ class FavoriteProductsView(GenericAPIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            product = Product.objects.get()
+            product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
             return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -100,7 +82,7 @@ class FavoriteProductsView(GenericAPIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            product = Product.objects.get()
+            product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
             return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -146,7 +128,7 @@ class AddProductReviewView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         product_id = data.get('id')
-        product = Product.categorized.get()
+        product = Product.categorized.get(id=product_id)
         images = request.FILES.getlist('images')
         if len(images) > 3:
             return Response({"message": "The maximum number of allowed images is 3", "status": "failed"},
@@ -256,7 +238,7 @@ class CreateOrderView(GenericAPIView):
         try:
             order = Order.objects.get(customer=customer, transaction_ref=transaction_reference)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+            return None
         return order
 
     def get(self, request, *args, **kwargs):
@@ -264,6 +246,8 @@ class CreateOrderView(GenericAPIView):
         if not transaction_reference:
             return Response({"message": "Transaction reference not provided."}, status=status.HTTP_400_BAD_REQUEST)
         order = self._get_order_by_transaction_ref(transaction_reference)
+        if order is None:
+            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         data = {'id': order.id, 'transaction_ref': order.transaction_ref, 'total_price': order.total_price,
                 'placed_at': order.placed_at, 'shipping_status': order.shipping_status,
                 'payment_status': order.payment_status}
@@ -271,7 +255,7 @@ class CreateOrderView(GenericAPIView):
                         status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, context={'request'})
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         return Response({"message": "Order created successfully", "data": serializer.to_representation(order),
@@ -282,6 +266,8 @@ class CreateOrderView(GenericAPIView):
         if not transaction_reference:
             return Response({"message": "Transaction reference not provided."}, status=status.HTTP_400_BAD_REQUEST)
         order = self._get_order_by_transaction_ref(transaction_reference)
+        if order is None:
+            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         order.delete()
         return Response({"message": "Order deleted successfully.", "status": "succeed"},
                         status=status.HTTP_204_NO_CONTENT)

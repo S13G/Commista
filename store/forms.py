@@ -44,5 +44,7 @@ class ProductAdminForm(forms.ModelForm):
         for form in formset:
             if form.is_valid():
                 quantity = form.cleaned_data.get("quantity")
+                if quantity is None:
+                    quantity = 0
                 total_quantity += quantity
         return total_quantity

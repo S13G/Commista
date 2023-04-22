@@ -2,7 +2,8 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Cart, CartItem, Colour, ColourInventory, CouponCode, Order, OrderItem, Product, ProductReview, \
+from store.models import Cart, CartItem, Colour, ColourInventory, CouponCode, FavoriteProduct, Order, OrderItem, \
+    Product, ProductReview, \
     Size, SizeInventory
 
 
@@ -46,20 +47,42 @@ class ProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_images(obj: Product):
-        return [image.image() for image in obj.images.all()]
+        return [image.image for image in obj.images.all()]
 
 
 class ProductDetailSerializer(ProductSerializer):
-    inventory = serializers.IntegerField()
-    condition = serializers.CharField()
-    location = serializers.CharField()
-    discount_price = serializers.DecimalField(max_digits=6, decimal_places=2)
-    average_ratings = serializers.DecimalField(max_digits=3, decimal_places=2)
-
     class Meta:
         model = Product
         fields = ProductSerializer.Meta.fields + ['inventory', 'condition', 'location', 'discount_price',
                                                   'average_ratings']
+
+
+class FavoriteProductSerializer(serializers.ModelSerializer):
+    product = ProductSerializer()
+    flash_sale_start_date = serializers.DateTimeField(source='product.flash_sale_start_date')
+    flash_sale_end_date = serializers.DateTimeField(source='product.flash_sale_end_date')
+    condition = serializers.CharField(source='product.condition')
+    location = serializers.CharField(source='product.location')
+    discount_price = serializers.DecimalField(max_digits=6, decimal_places=2, source='product.discount_price')
+    average_ratings = serializers.IntegerField(source='product.average_ratings')
+
+
+    class Meta:
+        model = FavoriteProduct
+        fields = ['id', 'product', 'flash_sale_start_date', 'flash_sale_end_date', 'condition', 'location',
+                  'discount_price', 'average_ratings']
+
+    @staticmethod
+    def get_size(obj):
+        return [size.title for size in obj.product.size_inventory.all()]
+
+    @staticmethod
+    def get_color(obj):
+        return [color.name for color in obj.product.color_inventory.all()]
+
+    @staticmethod
+    def get_images(obj):
+        return [image.image for image in obj.product.images.all()]
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
@@ -206,7 +229,11 @@ class CreateOrderSerializer(serializers.Serializer):
     def save(self, **kwargs):
         customer = self.context['request'].user
         coupon_code = self.validated_data.get('coupon_code', '')
-        cart = Cart.objects.select_for_update().get(customer=customer)
+        try:
+            cart = Cart.objects.select_for_update().get(customer=customer)
+        except Cart.DoesNotExist:
+            raise ValidationError({"message": "Cart not found", "status": "failed"})
+
 
         with transaction.atomic():
             try:

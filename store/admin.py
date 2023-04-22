@@ -19,13 +19,13 @@ class CategoryAdmin(admin.ModelAdmin):
     ordering = ("title", "gender",)
 
     @admin.display(ordering="products_count")
-    def products_count(self, collection):
+    def products_count(self, category):
         url = (reverse("admin:store_product_changelist") 
                + "?" 
-               + urlencode({"collection__id": str(collection.id)})
+               + urlencode({"category__id": str(category.id)})
             )
         
-        return format_html('<a href="{}">{} Products</a>', url, collection.products_count)
+        return format_html('<a href="{}">{} Products</a>', url, category.products_count)
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(products_count=Count("products"))
@@ -63,7 +63,7 @@ class SizeInventoryInline(admin.TabularInline):
 
 
 class ColourInventoryInline(admin.TabularInline):
-    model = ColourInventory  #
+    model = ColourInventory
     extra = 1
 
 @admin.register(Product)
@@ -80,7 +80,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("title", "category__name",)
     
     @staticmethod
-    def inventory_status(obj):
+    def inventory_status(obj: Product):
         if obj.inventory < 10:
             return "Low"
         return "High"
@@ -95,7 +95,7 @@ class ProductAdmin(admin.ModelAdmin):
         )
 
     @staticmethod
-    def product_images(obj):
+    def product_images(obj: Product):
         product_images = obj.images.all()
         html = ''
         for product in product_images:
@@ -122,7 +122,7 @@ class SliderImageAdmin(admin.ModelAdmin):
     list_display = ('image_id',)
 
     @staticmethod
-    def image_id(obj):
+    def image_id(obj: SliderImage):
         return f"Image {str(obj.id)[:5]}"
 
 
@@ -143,7 +143,8 @@ class ProductReviewAdmin(admin.ModelAdmin):
     readonly_fields = ("product_review_images",)
     search_fields = ("product__title",)
 
-    def product_review_images(self, obj):
+    @staticmethod
+    def product_review_images(obj: ProductReview):
         product_review_images = obj.product_review_images.all()
         html = ''
         for product_review in product_review_images:

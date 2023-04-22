@@ -67,8 +67,9 @@ class ItemLocation(BaseModel):
 
 class ProductsManager(models.Manager):
     def get_queryset(self):
-        return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews', 'size',
-                                                                            'colour', 'images').filter(inventory__lt=10)
+        return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews',
+                                                                            'size_inventory', 'color_inventory',
+                                                                            'images').filter(inventory__gt=0)
 
 
 class Product(BaseModel):
@@ -107,7 +108,7 @@ class Product(BaseModel):
     def discount_price(self):
         if self.percentage_off > 0:
             discount = self.price - (self.price * self.percentage_off / 100)
-            return discount
+            return round(discount, 2)
         return "Nil"
 
 
@@ -120,7 +121,7 @@ class ColourInventory(models.Model):
     )
     quantity = models.IntegerField(default=0, blank=True)
     extra_price = models.DecimalField(
-            max_digits=6, decimal_places=2, blank=True, null=True
+            max_digits=6, decimal_places=2, blank=True, null=True, default=0
     )
 
     class Meta:
@@ -139,7 +140,7 @@ class SizeInventory(models.Model):
     )
     quantity = models.IntegerField(default=0, blank=True)
     extra_price = models.DecimalField(
-            max_digits=6, decimal_places=2, blank=True, null=True
+            max_digits=6, decimal_places=2, blank=True, null=True, default=0
     )
 
     class Meta:
@@ -154,7 +155,7 @@ class ProductImage(models.Model):
             Product, on_delete=models.CASCADE, related_name="images"
     )
     _image = models.ImageField(
-            upload_to=upload_path, validators=[validate_image_size]
+            upload_to='store/images', validators=[validate_image_size]
     )
 
     def __str__(self):
@@ -311,6 +312,7 @@ class OrderItem(BaseModel):
 
 
 class Cart(BaseModel):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="carts")
 
     @cached_property
     def total_price(self):
