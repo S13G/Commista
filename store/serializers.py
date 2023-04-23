@@ -37,7 +37,7 @@ class SizeInventorySerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     sizes = SizeInventorySerializer(source='size_inventory', many=True, read_only=True)
-    colours = ColourInventorySerializer(source='colour_inventory', many=True, read_only=True)
+    colours = ColourInventorySerializer(source='color_inventory', many=True, read_only=True)
     images = serializers.SerializerMethodField()
 
     class Meta:
@@ -117,9 +117,18 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_total_price(cartitem: CartItem):
-        if cartitem.product.discount_price > 0:
+        if float(cartitem.product.discount_price) > 0:
             return cartitem.quantity * cartitem.product.discount_price
         return cartitem.quantity * cartitem.product.price
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        # Filter the colours list to only include the specified colour
+        colour = self.context['request'].data.get('colour')
+        if colour:
+            ret['product']['colours'] = [c for c in ret['product']['colours'] if
+                                         c['colour']['name'].lower() == colour.lower()]
+        return ret
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -133,20 +142,20 @@ def validate_cart_item(attrs):
     if not Product.objects.filter(id=product_id).exists():
         raise serializers.ValidationError({"message": "No product with the given ID was found.", "status": "failed"})
 
-    product = Product.objects.get()
+    product = Product.objects.get(id=product_id)
     size = attrs.get('size')
-    if size and not product.size.filter(title=size).exists():
+    if size and not product.size_inventory.filter(size=size).exists():
         raise serializers.ValidationError({"message": "Size not found for the given product.", "status": "failed"})
 
     colour = attrs.get('colour')
-    if colour and not product.colour.filter(name=colour).exists():
+    if colour and not product.color_inventory.filter(colour__name=colour).exists():
         raise serializers.ValidationError({"message": "Colour not found for the given product.", "status": "failed"})
 
     return attrs
 
 
 class AddCartItemSerializer(serializers.Serializer):
-    cart_id = serializers.CharField(max_length=60, required=False, default=None)
+    cart_id = serializers.CharField(max_length=60, required=False, default=None, allow_blank=True)
     product_id = serializers.CharField(max_length=100)
     size = serializers.CharField(required=False, allow_blank=True)
     colour = serializers.CharField(required=False, allow_blank=True)
@@ -157,19 +166,17 @@ class AddCartItemSerializer(serializers.Serializer):
         return attrs
 
     def save(self, **kwargs):
-        product = Product.objects.get()
+        product = Product.objects.get(id=self.validated_data.get('product_id'))
         cart_id = self.validated_data.get('cart_id')
         size = self.validated_data.get('size')
         colour = self.validated_data.get('colour')
         quantity = self.validated_data.get('quantity')
+        customer = self.context['request'].user
 
-        if cart_id is None:
-            cart = Cart.objects.get_or_create(defaults={})
-        else:
-            cart, _ = Cart.objects.get_or_create(id=cart_id)
+        cart, _ = Cart.objects.get_or_create(id=cart_id, customer=customer)
 
         try:
-            item = CartItem.objects.get(cart=cart, product=product, size=size, colour=colour)
+            item = CartItem.objects.get(cart=cart)
             item.quantity += quantity
             item.save()
         except CartItem.DoesNotExist:
@@ -194,8 +201,8 @@ class UpdateCartItemSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         try:
-            cart = Cart.objects.get(id=self.validated_data['cart_id'])
-            product = Product.objects.get()
+            cart = Cart.objects.get(id=self.validated_data.get('cart_id'))
+            product = Product.objects.get(id=self.validated_data.get('product_id'))
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
             raise serializers.ValidationError(
@@ -215,7 +222,7 @@ class DeleteCartItemSerializer(serializers.Serializer):
     def save(self, **kwargs):
         try:
             cart = Cart.objects.get(id=self.validated_data['cart_id'])
-            product = Product.objects.get()
+            product = Product.objects.get(self.validated_data.get('product_id'))
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
             raise serializers.ValidationError(
@@ -228,9 +235,11 @@ class CreateOrderSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         customer = self.context['request'].user
+        print(customer)
         coupon_code = self.validated_data.get('coupon_code', '')
         try:
-            cart = Cart.objects.select_for_update().get(customer=customer)
+            cart = Cart.objects.select_for_update().filter(customer=customer)
+            print(cart)
         except Cart.DoesNotExist:
             raise ValidationError({"message": "Cart not found", "status": "failed"})
 

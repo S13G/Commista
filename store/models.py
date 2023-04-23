@@ -31,7 +31,6 @@ class Category(BaseModel):
 
     class Meta:
         verbose_name_plural = "Categories"
-        ordering = ('-created',)
 
     def __str__(self):
         return self.title
@@ -40,9 +39,6 @@ class Category(BaseModel):
 class Size(BaseModel):
     title = models.CharField(max_length=5, unique=True)
 
-    class Meta:
-        ordering = ('-created',)
-
     def __str__(self):
         return self.title
 
@@ -50,9 +46,6 @@ class Size(BaseModel):
 class Colour(BaseModel):
     name = models.CharField(max_length=20, unique=True)
     hex_code = models.CharField(max_length=20, unique=True)
-
-    class Meta:
-        ordering = ('-created',)
 
     def __str__(self):
         return f"{self.name} ---- {self.hex_code}"
@@ -93,9 +86,6 @@ class Product(BaseModel):
     objects = models.Manager()
     categorized = ProductsManager()
 
-    class Meta:
-        ordering = ('-created',)
-
     def __str__(self):
         return f"{self.title} --- {self.category}"
 
@@ -109,7 +99,7 @@ class Product(BaseModel):
         if self.percentage_off > 0:
             discount = self.price - (self.price * self.percentage_off / 100)
             return round(discount, 2)
-        return "Nil"
+        return 0
 
 
 class ColourInventory(models.Model):
@@ -182,7 +172,6 @@ class FavoriteProduct(BaseModel):
                     fields=["customer", "product"], name="unique_customer_product"
             )
         ]
-        ordering = ('-created',)
 
     def __str__(self):
         return f"{self.customer.full_name} ----- {self.product.title}"
@@ -192,9 +181,6 @@ class SliderImage(BaseModel):
     _image = models.ImageField(
             upload_to=upload_path, validators=[validate_image_size]
     )
-
-    class Meta:
-        ordering = ('-created',)
 
     @property
     def slider_image(self):
@@ -212,9 +198,6 @@ class ProductReview(BaseModel):
     )
     ratings = models.IntegerField(choices=RATING_CHOICES, null=True)
     description = models.TextField()
-
-    class Meta:
-        ordering = ('-created',)
 
     def __str__(self):
         return f"{self.customer.full_name} --- {self.product.title} --- {self.ratings} stars"
@@ -242,9 +225,6 @@ class Notification(BaseModel):
     description = models.TextField()
     general = models.BooleanField(default=False)
 
-    class Meta:
-        ordering = ('-created',)
-
     def __str__(self):
         return f"{self.notification_type} ---- {self.title}"
 
@@ -254,9 +234,6 @@ class CouponCode(BaseModel):
     price = models.DecimalField(max_digits=6, decimal_places=2)
     expired = models.BooleanField(default=False)
     expiry_date = models.DateTimeField()  #
-
-    class Meta:
-        ordering = ('-created',)
 
     def __str__(self):
         return self.code
@@ -285,9 +262,6 @@ class Order(BaseModel):
     shipping_status = models.CharField(
             max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
     )
-
-    class Meta:
-        ordering = ('-created',)
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"
@@ -344,7 +318,6 @@ class Country(BaseModel):
 
     class Meta:
         verbose_name_plural = "Countries"
-        ordering = ('-created',)
 
     def __str__(self):
         return f"{self.name} -- {self.code}"
@@ -366,7 +339,6 @@ class Address(BaseModel):
 
     class Meta:
         verbose_name_plural = "Addresses"
-        ordering = ('-created',)
 
     def __str__(self):
         return f"{self.customer.full_name}"

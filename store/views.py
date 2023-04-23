@@ -195,17 +195,17 @@ class CartItemView(GenericAPIView):
         except Cart.DoesNotExist:
             return Response({"message": "Cart not found", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
-        serializer = CartItemSerializer(cart.items.all(), many=True)
+        serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
         return Response({"message": "Cart items retrieved successfully", "data": serializer.data, "status": "succeed"},
                         status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         cart_item = serializer.save()
 
         # Serialize the cart item object to a dictionary
-        cart_item_data = CartItemSerializer(cart_item).data
+        cart_item_data = CartItemSerializer(cart_item, context={'request': request}).data
         return Response(
                 {"message": "Cart item successfully added to the cart", "data": cart_item_data, "status": "succeed"},
                 status=status.HTTP_201_CREATED)
