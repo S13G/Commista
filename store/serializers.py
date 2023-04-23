@@ -66,7 +66,6 @@ class FavoriteProductSerializer(serializers.ModelSerializer):
     discount_price = serializers.DecimalField(max_digits=6, decimal_places=2, source='product.discount_price')
     average_ratings = serializers.IntegerField(source='product.average_ratings')
 
-
     class Meta:
         model = FavoriteProduct
         fields = ['id', 'product', 'flash_sale_start_date', 'flash_sale_end_date', 'condition', 'location',
@@ -125,9 +124,16 @@ class CartItemSerializer(serializers.ModelSerializer):
         ret = super().to_representation(instance)
         # Filter the colours list to only include the specified colour
         colour = self.context['request'].data.get('colour')
+        size = self.context['request'].data.get('size')
         if colour:
-            ret['product']['colours'] = [c for c in ret['product']['colours'] if
-                                         c['colour']['name'].lower() == colour.lower()]
+            ret['product']['colours'] = [
+                {'colour': {'name': c['colour']['name'], 'hex_code': c['colour']['hex_code']},
+                 'extra_price': c['extra_price']}
+                for c in ret['product']['colours'] if c['colour']['name'].lower() == colour.lower()]
+
+        if size:
+            ret['product']['sizes'] = [{'size': {'name': c['size']['title']}, 'extra_price': c['extra_price']}
+                                       for c in ret['product']['sizes'] if c['size']['title'].lower() == size.lower()]
         return ret
 
 
@@ -144,7 +150,7 @@ def validate_cart_item(attrs):
 
     product = Product.objects.get(id=product_id)
     size = attrs.get('size')
-    if size and not product.size_inventory.filter(size=size).exists():
+    if size and not product.size_inventory.filter(size__title=size).exists():
         raise serializers.ValidationError({"message": "Size not found for the given product.", "status": "failed"})
 
     colour = attrs.get('colour')
@@ -187,6 +193,19 @@ class AddCartItemSerializer(serializers.Serializer):
         if cart.items.count() == 0:
             cart.delete()
         return item
+
+    # def to_representation(self, instance):
+    #     ret = super().to_representation(instance)
+    #     product_serializer = ProductSerializer(instance.product)
+    #
+    #     # Only include the color or size that was added to the cart
+    #     if 'color' in ret:
+    #         ret['color'] = ColourSerializer(instance.color).data
+    #     if 'size' in ret:
+    #         ret['size'] = SizeSerializer(instance.size).data
+    #
+    #     ret['product'] = product_serializer.data
+    #     return ret
 
 
 class UpdateCartItemSerializer(serializers.Serializer):
@@ -242,7 +261,6 @@ class CreateOrderSerializer(serializers.Serializer):
             print(cart)
         except Cart.DoesNotExist:
             raise ValidationError({"message": "Cart not found", "status": "failed"})
-
 
         with transaction.atomic():
             try:
