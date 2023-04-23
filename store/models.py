@@ -290,7 +290,8 @@ class Cart(BaseModel):
 
     @cached_property
     def total_price(self):
-        total_price = sum((item.product.price * item.product.quantity for item in self.items.all()))
+        total_price = sum(
+                ((item.product.price * item.product.quantity) + item.extra_price for item in self.items.all()))
         return total_price
 
 
@@ -300,6 +301,7 @@ class CartItem(BaseModel):
     size = models.CharField(max_length=20, null=True)
     colour = models.CharField(max_length=20, null=True)
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
+    extra_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
 
     class Meta:
         constraints = [

@@ -108,32 +108,36 @@ class AddProductReviewSerializer(serializers.ModelSerializer):
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer()
+    discount_price = serializers.DecimalField(max_digits=6, decimal_places=2, source='product.discount_price')
     total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['cart_id', 'product', 'quantity', 'total_price']
+        fields = ['cart_id', 'product', 'discount_price', 'quantity', 'total_price']
 
     @staticmethod
     def get_total_price(cartitem: CartItem):
+        extra_price = cartitem.extra_price
         if float(cartitem.product.discount_price) > 0:
-            return cartitem.quantity * cartitem.product.discount_price
-        return cartitem.quantity * cartitem.product.price
+            return (cartitem.quantity * cartitem.product.discount_price) + extra_price
+        return (cartitem.quantity * cartitem.product.price) + extra_price
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
+        request_data = self.context['request'].data
+        colour = request_data.get('colour')
+        size = request_data.get('size')
         # Filter the colours list to only include the specified colour
-        colour = self.context['request'].data.get('colour')
-        size = self.context['request'].data.get('size')
         if colour:
-            ret['product']['colours'] = [
-                {'colour': {'name': c['colour']['name'], 'hex_code': c['colour']['hex_code']},
-                 'extra_price': c['extra_price']}
-                for c in ret['product']['colours'] if c['colour']['name'].lower() == colour.lower()]
-
+            colours = [c for c in ret['product']['colours'] if c['colour']['name'].lower() == colour.lower()]
+            ret['product']['colours'] = [{'colour': {'name': c['colour']['name'], 'hex_code': c['colour']['hex_code']},
+                                          'extra_price': c['extra_price']} for c in colours]
+        # Filter the sizes list to only include the specified colour
         if size:
-            ret['product']['sizes'] = [{'size': {'name': c['size']['title']}, 'extra_price': c['extra_price']}
-                                       for c in ret['product']['sizes'] if c['size']['title'].lower() == size.lower()]
+            sizes = [c for c in ret['product']['sizes'] if c['size']['title'].lower() == size.lower()]
+            ret['product']['sizes'] = [{'size': {'name': c['size']['title']}, 'extra_price': c['extra_price']} for c in
+                                       sizes]
+
         return ret
 
 
@@ -179,14 +183,25 @@ class AddCartItemSerializer(serializers.Serializer):
         quantity = self.validated_data.get('quantity')
         customer = self.context['request'].user
 
+        # Get the extra price of the selected colour and size
+        extra_price = 0
+        if size:
+            size_inv_obj = SizeInventory.objects.get(size__title__iexact=size, product=product)
+            extra_price += size_inv_obj.extra_price
+        if colour:
+            colour_inv_obj = ColourInventory.objects.get(colour__name__iexact=colour, product=product)
+            extra_price += colour_inv_obj.extra_price
+
         cart, _ = Cart.objects.get_or_create(id=cart_id, customer=customer)
 
         try:
             item = CartItem.objects.get(cart=cart)
             item.quantity += quantity
+            item.extra_price = extra_price
             item.save()
         except CartItem.DoesNotExist:
-            item = CartItem.objects.create(cart=cart, product=product, size=size, colour=colour, quantity=quantity)
+            item = CartItem.objects.create(cart=cart, product=product, size=size, colour=colour, quantity=quantity,
+                                           extra_price=extra_price)
         if item.quantity == 0:
             item.delete()
 
