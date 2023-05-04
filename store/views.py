@@ -184,8 +184,6 @@ class ProductsFilterView(ListAPIView):
 
 class CartItemView(GenericAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = AddCartItemSerializer
-
     def get(self, request, *args, **kwargs):
         cart_id = self.request.query_params.get('cart_id')
         if not cart_id:
@@ -196,7 +194,9 @@ class CartItemView(GenericAPIView):
             return Response({"message": "Cart not found", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
         serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
-        return Response({"message": "Cart items retrieved successfully", "data": serializer.data, "status": "succeed"},
+
+        
+        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price, "data": serializer.data,"status": "succeed"},
                         status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -227,7 +227,16 @@ class CartItemView(GenericAPIView):
         serializer.save()
         return Response({"message": "Item deleted successfully.", "status": "succeed"},
                         status=status.HTTP_204_NO_CONTENT)
-
+    
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return AddCartItemSerializer
+        elif self.request.method == "PATCH":
+            return UpdateCartItemSerializer
+        elif self.request.method == "DELETE":
+            return DeleteCartItemSerializer
+        else :
+            return super().get_serializer_class()
 
 class CreateOrderView(GenericAPIView):
     permission_classes = [IsAuthenticated]
