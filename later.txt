@@ -1,0 +1,13 @@
+
+    # def to_representation(self, instance):
+    #     ret = super().to_representation(instance)
+    #     product_serializer = ProductSerializer(instance.product)
+    #
+    #     # Only include the color or size that was added to the cart
+    #     if 'color' in ret:
+    #         ret['color'] = ColourSerializer(instance.color).data
+    #     if 'size' in ret:
+    #         ret['size'] = SizeSerializer(instance.size).data
+    #
+    #     ret['product'] = product_serializer.data
+    #     return ret
