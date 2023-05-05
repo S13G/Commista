@@ -211,7 +211,7 @@ class CartItemView(GenericAPIView):
                 status=status.HTTP_201_CREATED)
 
     def patch(self, request):
-        serializer = UpdateCartItemSerializer(data=self.request.data, partial=True)
+        serializer = self.get_serializer(data=self.request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         updated_cart_item = serializer.save()
 
@@ -222,7 +222,7 @@ class CartItemView(GenericAPIView):
                 status=status.HTTP_201_CREATED)
 
     def delete(self, request):
-        serializer = DeleteCartItemSerializer(data=self.request.data)
+        serializer = self.get_serializer(data=self.request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Item deleted successfully.", "status": "succeed"},

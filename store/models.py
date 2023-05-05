@@ -245,7 +245,7 @@ class CouponCode(BaseModel):
         if self.expiry_date and timezone.now() > self.expiry_date:
             self.expired = True
 
-            # ensure expiry date is always in the future
+        # ensure expiry date is always in the future
         if self.expiry_date < timezone.now():
             raise ValidationError('Expiry date must be in the future.')
         super().save(*args, **kwargs)
@@ -302,20 +302,12 @@ class CartItem(BaseModel):
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
     extra_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
 
-
     @property
     def total_price(self):
         extra_price = self.extra_price
         if float(self.product.discount_price) > 0:
             return self.quantity * (self.product.discount_price + extra_price)
         return self.quantity * (self.product.price + extra_price)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                    fields=["cart", "product"], name="unique_cart_product"
-            )
-        ]
 
     def __str__(self):
         return f"Cart id({self.cart.id}) ---- {self.product.title} ---- {self.quantity}"
