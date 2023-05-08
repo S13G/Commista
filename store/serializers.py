@@ -170,31 +170,6 @@ class CartItemSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = ["cart_id", "product", "size", "colour", "quantity", "discount_price", "quantity", "total_price"]
 
-    @staticmethod
-    def get_total_price(cartitem: CartItem):
-        extra_price = cartitem.extra_price
-        if float(cartitem.product.discount_price) > 0:
-            return cartitem.quantity * (cartitem.product.discount_price + extra_price)
-        return cartitem.quantity * (cartitem.product.price + extra_price)
-
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        request_data = self.context['request'].data
-        colour = request_data.get('colour')
-        size = request_data.get('size')
-
-        # Filter the colours list to only include the specified colour
-        if colour:
-            colours = [c for c in ret['product']['colours'] if c['colour']['name'].lower() == colour.lower()]
-            ret['product']['colours'] = [{'colour': {'name': c['colour']['name'], 'hex_code': c['colour']['hex_code']},
-                                          'extra_price': c['extra_price']} for c in colours]
-
-        # Filter the sizes list to only include the specified size
-        if size:
-            sizes = [c for c in ret['product']['sizes'] if c['size']['title'].lower() == size.lower()]
-            ret['product']['sizes'] = [{'size': {'name': c['size']['title']}, 'extra_price': c['extra_price']} for c in
-                                       sizes]
-
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer()

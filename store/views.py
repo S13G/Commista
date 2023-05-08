@@ -211,18 +211,18 @@ class CartItemView(GenericAPIView):
                 status=status.HTTP_201_CREATED)
 
     def patch(self, request):
-        serializer = self.get_serializer(data=self.request.data, partial=True)
+        serializer = self.get_serializer(data=self.request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         updated_cart_item = serializer.save()
 
         # Serialize the cart item object to a dictionary
-        updated_cart_item_data = CartItemSerializer(updated_cart_item).data
+        updated_cart_item_data = CartItemSerializer(updated_cart_item, context={'request': request}).data
         return Response(
                 {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "succeed"},
                 status=status.HTTP_201_CREATED)
 
     def delete(self, request):
-        serializer = self.get_serializer(data=self.request.data)
+        serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Item deleted successfully.", "status": "succeed"},
