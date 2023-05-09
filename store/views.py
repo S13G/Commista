@@ -220,31 +220,18 @@ class CartItemView(GenericAPIView):
         )
 
     def patch(self, request):
-        customer = self.request.user
         serializer = self.get_serializer(data=self.request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        try:
-            cart = Cart.objects.get(id=serializer.validated_data.get("cart_id"), customer=customer)
-        except Cart.DoesNotExist:
-            return Response(
-                    {"message": "Invalid cart ID or customer ID. Please check the provided ID.", "status": "failed"},
-                    status=status.HTTP_400_BAD_REQUEST)
-        updated_cart_item = serializer.save(cart=cart)
+        updated_cart_item = serializer.save()
         updated_cart_item_data = CartItemSerializer(updated_cart_item, context={'request': request}).data
         return Response(
                 {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "succeed"},
                 status=status.HTTP_201_CREATED)
 
     def delete(self, request):
-        customer = self.request.user
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        try:
-            cart = Cart.objects.get(id=serializer.validated_data.get("cart_id"), customer=customer)
-        except Cart.DoesNotExist:
-            return Response({"message": "Invalid cart ID. Please check the provided ID.", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        serializer.save(cart=cart)
+        serializer.save()
         return Response({"message": "Item deleted successfully.", "status": "succeed"},
                         status=status.HTTP_204_NO_CONTENT)
 
