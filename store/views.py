@@ -50,7 +50,7 @@ class FavoriteProductsView(GenericAPIView):
         if user is None:
             return Response({"message": "User does not exist", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         favorite_products = FavoriteProduct.objects.filter(customer=user).select_related('product').prefetch_related(
-            'product__color_inventory__colour', 'product__size_inventory__size', 'product__images')
+                'product__color_inventory__colour', 'product__size_inventory__size', 'product__images')
         serializer = self.serializer_class(favorite_products, many=True)
         return Response({"message": "All favorite products fetched", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)
@@ -184,50 +184,70 @@ class ProductsFilterView(ListAPIView):
 
 class CartItemView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+
     def get(self, request, *args, **kwargs):
+        customer = self.request.user
         cart_id = self.request.query_params.get('cart_id')
         if not cart_id:
             return Response({"message": "Cart ID not provided."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            cart = Cart.objects.get(id=cart_id)
+            cart = Cart.objects.get(id=cart_id, customer=customer)
         except Cart.DoesNotExist:
             return Response({"message": "Cart not found", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
         serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
-
-        
-        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price, "data": serializer.data,"status": "succeed"},
-                        status=status.HTTP_200_OK)
+        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price,
+                         "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
+        customer = self.request.user
+        serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        cart_item = serializer.save()
 
-        # Serialize the cart item object to a dictionary
+        # Check if cart exists and belongs to the current user
+        cart_id = serializer.validated_data.get("cart_id")
+        try:
+            cart = Cart.objects.get(id=cart_id, customer=customer)
+        except Cart.DoesNotExist:
+            return Response({"message": "Invalid cart ID.", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+        cart_item = serializer.save(cart=cart)
         cart_item_data = CartItemSerializer(cart_item, context={'request': request}).data
+
         return Response(
-                {"message": "Cart item successfully added to the cart", "data": cart_item_data, "status": "succeed"},
-                status=status.HTTP_201_CREATED)
+                {"message": "Cart item added successfully", "data": cart_item_data, "status": "succeed"},
+                status=status.HTTP_201_CREATED
+        )
 
     def patch(self, request):
+        customer = self.request.user
         serializer = self.get_serializer(data=self.request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        updated_cart_item = serializer.save()
-
-        # Serialize the cart item object to a dictionary
+        try:
+            cart = Cart.objects.get(id=serializer.validated_data.get("cart_id"), customer=customer)
+        except Cart.DoesNotExist:
+            return Response(
+                    {"message": "Invalid cart ID or customer ID. Please check the provided ID.", "status": "failed"},
+                    status=status.HTTP_400_BAD_REQUEST)
+        updated_cart_item = serializer.save(cart=cart)
         updated_cart_item_data = CartItemSerializer(updated_cart_item, context={'request': request}).data
         return Response(
                 {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "succeed"},
                 status=status.HTTP_201_CREATED)
 
     def delete(self, request):
+        customer = self.request.user
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            cart = Cart.objects.get(id=serializer.validated_data.get("cart_id"), customer=customer)
+        except Cart.DoesNotExist:
+            return Response({"message": "Invalid cart ID. Please check the provided ID.", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(cart=cart)
         return Response({"message": "Item deleted successfully.", "status": "succeed"},
                         status=status.HTTP_204_NO_CONTENT)
-    
+
     def get_serializer_class(self):
         if self.request.method == "POST":
             return AddCartItemSerializer
@@ -235,8 +255,9 @@ class CartItemView(GenericAPIView):
             return UpdateCartItemSerializer
         elif self.request.method == "DELETE":
             return DeleteCartItemSerializer
-        else :
+        else:
             return super().get_serializer_class()
+
 
 class CreateOrderView(GenericAPIView):
     permission_classes = [IsAuthenticated]

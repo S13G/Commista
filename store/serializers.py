@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -202,10 +203,70 @@ def validate_cart_item(attrs):
     return attrs
 
 
+# class AddCartItemSerializer(serializers.Serializer):
+#     cart_id = serializers.CharField(max_length=60, required=False, default=None, allow_blank=True)
+#     product_id = serializers.CharField(max_length=100)
+#     size = serializers.CharField(required=False, allow_blank=True)
+#     colour = serializers.CharField(required=False, allow_blank=True)
+#     quantity = serializers.IntegerField()
+#
+#     def validate(self, attrs):
+#         attrs = validate_cart_item(attrs)
+#         return attrs
+#
+#     def save(self, **kwargs):
+#         product = Product.objects.get(id=self.validated_data.get("product_id"))
+#         cart_id = self.validated_data.get("cart_id")
+#         size = self.validated_data.get("size")
+#         colour = self.validated_data.get("colour")
+#         quantity = self.validated_data.get("quantity")
+#         customer = self.context["request"].user
+#
+#         if not cart_id:
+#             # create a random UUID because the Cart will attempt to compare UUID to an empty-string and will result in runtime error
+#             cart_id = uuid.uuid4()
+#
+#         cart, _ = Cart.objects.get_or_create(id=cart_id, customer=customer)
+#
+#         cart_item_obj = CartItem.objects.filter(cart=cart, product=product)
+#         # Get the extra price of the selected colour and size
+#         # And filter the Cart_Item queryset depending on the input
+#         extra_price = 0
+#         if size:
+#             size_inv_obj = SizeInventory.objects.get(
+#                     size__title__iexact=size, product=product
+#             )
+#             extra_price += size_inv_obj.extra_price
+#             cart_item_obj = cart_item_obj.filter(size=size)
+#         if colour:
+#             colour_inv_obj = ColourInventory.objects.get(
+#                     colour__name__iexact=colour, product=product
+#             )
+#             extra_price += colour_inv_obj.extra_price
+#             cart_item_obj = cart_item_obj.filter(colour=colour)
+#
+#         if all([size, colour]):
+#             cart_item_obj = cart_item_obj.filter(colour=colour, size=size)
+#
+#         try:
+#             item = cart_item_obj.get()
+#             item.quantity += quantity
+#             item.extra_price = extra_price
+#             item.save()
+#         except CartItem.DoesNotExist:
+#             item = CartItem.objects.create(cart=cart, product=product, size=size, colour=colour, quantity=quantity,
+#                                            extra_price=extra_price)
+#
+#         if item.quantity == 0:
+#             item.delete()
+#
+#         if cart.items.count() == 0:
+#             cart.delete()
+#         return item
+
+
 class AddCartItemSerializer(serializers.Serializer):
-    cart_id = serializers.CharField(
-            max_length=60, required=False, default=None, allow_blank=True
-    )
+    cart_id = serializers.CharField(max_length=60, required=False, default=None, allow_blank=True)
     product_id = serializers.CharField(max_length=100)
     size = serializers.CharField(required=False, allow_blank=True)
     colour = serializers.CharField(required=False, allow_blank=True)
@@ -216,60 +277,47 @@ class AddCartItemSerializer(serializers.Serializer):
         return attrs
 
     def save(self, **kwargs):
-        product = Product.objects.get(id=self.validated_data.get("product_id"))
-        cart_id = self.validated_data.get("cart_id")
+        customer = self.context["request"].user
+        product_id = self.validated_data["product_id"]
         size = self.validated_data.get("size")
         colour = self.validated_data.get("colour")
-        quantity = self.validated_data.get("quantity")
-        customer = self.context["request"].user
+        quantity = self.validated_data["quantity"]
+        cart_id = self.validated_data.get("cart_id", str(uuid.uuid4()))
 
-        if not cart_id:
-            # create a random UUID because the Cart will attempt to compare UUID to an empty-string and will result in runtime error
-            cart_id = uuid.uuid4()
-
+        product = get_object_or_404(Product, id=product_id)
         cart, _ = Cart.objects.get_or_create(id=cart_id, customer=customer)
 
-        cart_item_obj = CartItem.objects.filter(cart=cart, product=product)
-        # Get the extra price of the selected colour and size
-        # And filter the Cart_Item queryset depending on the input
         extra_price = 0
         if size:
-            size_inv_obj = SizeInventory.objects.get(
-                    size__title__iexact=size, product=product
-            )
-            extra_price += size_inv_obj.extra_price
-            cart_item_obj = cart_item_obj.filter(size=size)
+            size_inv = get_object_or_404(SizeInventory, size__title__iexact=size, product=product)
+            extra_price += size_inv.extra_price
+
         if colour:
-            colour_inv_obj = ColourInventory.objects.get(
-                    colour__name__iexact=colour, product=product
-            )
-            extra_price += colour_inv_obj.extra_price
-            cart_item_obj = cart_item_obj.filter(colour=colour)
+            colour_inv = get_object_or_404(ColourInventory, colour__name__iexact=colour, product=product)
+            extra_price += colour_inv.extra_price
 
-        if all([size, colour]):
-            cart_item_obj = cart_item_obj.filter(colour=colour, size=size)
-
-        try:
-            item = cart_item_obj.get()
-            item.quantity += quantity
-            item.extra_price = extra_price
-            item.save()
-        except CartItem.DoesNotExist:
-            item = CartItem.objects.create(
+        cart_item = cart.items.filter(product=product, size=size, colour=colour).first()
+        if cart_item:
+            cart_item.quantity += quantity
+            cart_item.extra_price = extra_price
+            cart_item.save()
+        else:
+            cart_item = CartItem.objects.create(
                     cart=cart,
                     product=product,
                     size=size,
                     colour=colour,
                     quantity=quantity,
-                    extra_price=extra_price,
+                    extra_price=extra_price
             )
 
-        if item.quantity == 0:
-            item.delete()
+        if cart_item.quantity == 0:
+            cart_item.delete()
 
         if cart.items.count() == 0:
             cart.delete()
-        return item
+
+        return cart_item
 
 
 class UpdateCartItemSerializer(serializers.Serializer):
@@ -294,11 +342,30 @@ class UpdateCartItemSerializer(serializers.Serializer):
                         "status": "failed",
                     }
             )
+
+        # update size and color extra price
         if self.validated_data.get("size"):
-            item.size = self.validated_data["size"]
+            size = self.validated_data["size"]
+            size_inv_obj = SizeInventory.objects.get(
+                    size__title__iexact=size, product=product
+            )
+            item.size = size
+            extra_price = size_inv_obj.extra_price
+            item.extra_price -= item.size_extra_price
+            item.size_extra_price = extra_price
+
         if self.validated_data.get("colour"):
-            item.colour = self.validated_data["colour"]
+            colour = self.validated_data["colour"]
+            colour_inv_obj = ColourInventory.objects.get(
+                    colour__name__iexact=colour, product=product
+            )
+            item.colour = colour
+            extra_price = colour_inv_obj.extra_price
+            item.extra_price -= item.colour_extra_price
+            item.colour_extra_price = extra_price
+
         item.save()
+
         return item
 
 
@@ -319,6 +386,7 @@ class DeleteCartItemSerializer(serializers.Serializer):
                     }
             )
         item.delete()
+        return item
 
 
 class CreateOrderSerializer(serializers.Serializer):
