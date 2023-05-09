@@ -200,20 +200,10 @@ class CartItemView(GenericAPIView):
                          "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
 
     def post(self, request):
-        customer = self.request.user
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-
-        # Check if cart exists and belongs to the current user
-        cart_id = serializer.validated_data.get("cart_id")
-        try:
-            cart = Cart.objects.get(id=cart_id, customer=customer)
-        except Cart.DoesNotExist:
-            return Response({"message": "Invalid cart ID.", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
-
         cart_item = serializer.save(cart=cart)
         cart_item_data = CartItemSerializer(cart_item, context={'request': request}).data
-
         return Response(
                 {"message": "Cart item added successfully", "data": cart_item_data, "status": "succeed"},
                 status=status.HTTP_201_CREATED

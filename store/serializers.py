@@ -259,7 +259,7 @@ class AddCartItemSerializer(serializers.Serializer):
 
 
 class UpdateCartItemSerializer(serializers.Serializer):
-    cart_id = serializers.CharField(max_length=60, default=None)
+    cart_id = serializers.CharField(max_length=60)
     product_id = serializers.CharField(max_length=100)
     size = serializers.CharField(required=False, allow_blank=True)
     colour = serializers.CharField(required=False, allow_blank=True)
@@ -270,40 +270,32 @@ class UpdateCartItemSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         customer = self.context["request"].user
+        cart_id = self.validated_data.get("cart_id")
+        product_id = self.validated_data.get("product_id")
+        size = self.validated_data.get("size")
+        colour = self.validated_data.get("colour")
+
         try:
-            cart = Cart.objects.get(id=self.validated_data.get("cart_id"), customer=customer)
-            product = Product.objects.get(id=self.validated_data.get("product_id"))
+            cart = Cart.objects.get(id=cart_id, customer=customer)
+            product = Product.objects.get(id=product_id)
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
-            raise serializers.ValidationError(
-                    {
-                        "message": "Invalid cart or product ID. Please check the provided IDs.",
-                        "status": "failed",
-                    }
-            )
+            raise serializers.ValidationError({
+                "message": "Invalid cart or product ID. Please check the provided IDs.",
+                "status": "failed",
+            })
 
-        # update size and color extra price
-        # if self.validated_data.get("size"):
-        #     size = self.validated_data["size"]
-        #     size_inv_obj = SizeInventory.objects.get(
-        #             size__title__iexact=size, product=product
-        #     )
-        #     item.size = size
-        #     extra_price = size_inv_obj.extra_price
-        #     item.extra_price -= item.size_extra_price
-        #     item.size_extra_price = extra_price
-        #
-        # if self.validated_data.get("colour"):
-        #     colour = self.validated_data["colour"]
-        #     colour_inv_obj = ColourInventory.objects.get(
-        #             colour__name__iexact=colour, product=product
-        #     )
-        #     item.colour = colour
-        #     extra_price = colour_inv_obj.extra_price
-        #     item.extra_price -= item.colour_extra_price
-        #     item.colour_extra_price = extra_price
-        #
-        # item.save()
+        if size:
+            size_inv_obj = SizeInventory.objects.get(size__title__iexact=size, product=product)
+            item.extra_price = size_inv_obj.extra_price
+            item.size = size
+
+        if colour:
+            colour_inv_obj = ColourInventory.objects.get(colour__name__iexact=colour, product=product)
+            item.extra_price = colour_inv_obj.extra_price
+            item.colour = colour
+
+        item.save()
 
         return item
 
