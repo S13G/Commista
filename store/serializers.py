@@ -183,7 +183,7 @@ class CartSerializer(serializers.ModelSerializer):
 def validate_cart_item(attrs):
     product_id = attrs["product_id"]
     if not Product.objects.filter(id=product_id).exists():
-        raise serializers.ValidationError(
+        raise ValidationError(
                 {"message": "No product with the given ID was found.", "status": "failed"}
         )
 
@@ -191,13 +191,13 @@ def validate_cart_item(attrs):
 
     size = attrs.get("size")
     if size and not product.size_inventory.filter(size__title=size).exists():
-        raise serializers.ValidationError(
+        raise ValidationError(
                 {"message": "Size not found for the given product.", "status": "failed"}
         )
 
     colour = attrs.get("colour")
     if colour and not product.color_inventory.filter(colour__name=colour).exists():
-        raise serializers.ValidationError(
+        raise ValidationError(
                 {"message": "Colour not found for the given product.", "status": "failed"}
         )
 
@@ -237,7 +237,7 @@ class AddCartItemSerializer(serializers.Serializer):
 
         cart_item = cart.items.filter(product=product, size=size, colour=colour).first()
         if cart_item:
-            cart_item.quantity += quantity
+            cart_item.quantity = quantity
             cart_item.extra_price = extra_price
             cart_item.save()
         else:
@@ -281,7 +281,7 @@ class UpdateCartItemSerializer(serializers.Serializer):
             product = Product.objects.get(id=product_id)
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
-            raise serializers.ValidationError({
+            raise ValidationError({
                 "message": "Invalid cart or product ID. Please check the provided IDs.",
                 "status": "failed",
             })
@@ -312,7 +312,7 @@ class DeleteCartItemSerializer(serializers.Serializer):
             product = Product.objects.get(id=self.validated_data.get("product_id"))
             item = CartItem.objects.get(cart=cart, product=product)
         except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
-            raise serializers.ValidationError(
+            raise ValidationError(
                     {
                         "message": "Invalid cart or product ID. Please check the provided IDs.",
                         "status": "failed",
@@ -321,41 +321,66 @@ class DeleteCartItemSerializer(serializers.Serializer):
         item.delete()
 
 
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['id', 'transaction_ref', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['id', 'transaction_ref', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
+
+
 class CreateOrderSerializer(serializers.Serializer):
     coupon_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
 
     def save(self, **kwargs):
         customer = self.context["request"].user
-        coupon_code = self.validated_data.get("coupon_code", "")
+        coupon_discount = 0
         try:
-            cart = Cart.objects.select_for_update().filter(customer=customer)
+            cart = Cart.objects.select_for_update().get(customer=customer)
         except Cart.DoesNotExist:
             raise ValidationError({"message": "Cart not found", "status": "failed"})
 
         with transaction.atomic():
-            try:
-                coupon = CouponCode.objects.get(code=coupon_code, expired=False)
-                coupon_discount = coupon.price
-            except CouponCode.DoesNotExist:
-                raise ValidationError(
-                        {"message": "Invalid coupon code", "status": "failed"}
-                )
+            if self.validated_data.get("coupon_code"):
+                try:
+                    coupon = CouponCode.objects.get(
+                            code=self.validated_data["coupon_code"], expired=False
+                    )
+                    coupon_discount = coupon.price
+                    coupon.expired = True
+                    coupon.save()
+                except CouponCode.DoesNotExist:
+                    raise ValidationError(
+                            {"message": "Invalid coupon code", "status": "failed"}
+                    )
+
+            transaction_ref = uuid.uuid4().hex[:10]
 
             order = Order.objects.create(
-                    customer=customer, total_price=cart.total_price - (coupon_discount or 0)
+                    customer=customer, total_price=cart.total_price - coupon_discount,
+                    transaction_ref=f"TR-{transaction_ref}"
             )
-            order.transaction_ref = f"TR-{order.transaction_ref}"
 
-            for item in cart.items.all():
-                OrderItem.objects.create(
+            order_items = [
+                OrderItem(
                         customer=customer,
                         order=order,
                         product=item.product,
                         quantity=item.quantity,
                         size=item.size,
                         colour=item.colour,
+                        unit_price=item.product.price,
                 )
+                for item in cart.items.all()
+            ]
+            OrderItem.objects.bulk_create(order_items)
+
             cart.delete()
+
         return order
 
     def to_representation(self, instance: Order):

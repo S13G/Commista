@@ -1,4 +1,5 @@
 import secrets
+from decimal import Decimal
 
 from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
@@ -253,7 +254,7 @@ class CouponCode(BaseModel):
 
 class Order(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
-    transaction_ref = models.CharField(max_length=12, default=secrets.token_urlsafe, unique=True)
+    transaction_ref = models.CharField(max_length=32, unique=True)
     placed_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     payment_status = models.CharField(
@@ -288,7 +289,7 @@ class OrderItem(BaseModel):
 class Cart(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="carts")
 
-    @cached_property
+    @property
     def total_price(self):
         cart_total = sum([item.total_price for item in self.items.all()])
         return cart_total
