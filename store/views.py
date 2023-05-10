@@ -202,7 +202,7 @@ class CartItemView(GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        cart_item = serializer.save(cart=cart)
+        cart_item = serializer.save()
         cart_item_data = CartItemSerializer(cart_item, context={'request': request}).data
         return Response(
                 {"message": "Cart item added successfully", "data": cart_item_data, "status": "succeed"},

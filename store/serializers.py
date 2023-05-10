@@ -188,6 +188,7 @@ def validate_cart_item(attrs):
         )
 
     product = Product.objects.get(id=product_id)
+
     size = attrs.get("size")
     if size and not product.size_inventory.filter(size__title=size).exists():
         raise serializers.ValidationError(
