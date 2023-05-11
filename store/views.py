@@ -307,9 +307,10 @@ class CreateAddressView(GenericAPIView):
                     {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "succeed"},
                     status=status.HTTP_200_OK)
 
-    def patch(self, request, id):
+    def patch(self, request):
+        address_id = self.request.query_params.get('id')
         try:
-            address = Address.objects.get(id=id, customer=self.request.user)
+            address = Address.objects.get(id=address_id, customer=self.request.user)
         except Address.DoesNotExist:
             return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         serializer = self.get_serializer(address, data=request.data, partial=True)
@@ -325,10 +326,12 @@ class CreateAddressView(GenericAPIView):
         return Response({"message": "Address added successfully", "data": serializer.data},
                         status=status.HTTP_201_CREATED)
 
-    def delete(self, request, id):
+    def delete(self, request):
+        address_id = self.request.query_params.get('id')
         try:
-            address = Address.objects.get(id=id, customer=self.request.user)
+            address = Address.objects.get(id=address_id, customer=self.request.user)
         except Address.DoesNotExist:
-            return Response({"message": "Address not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         address.delete()
-        return Response({"message": "Address deleted successfully"})
+        return Response({"message": "Address deleted successfully", "status": "succeed"},
+                        status=status.HTTP_204_NO_CONTENT)
