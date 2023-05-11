@@ -1,4 +1,6 @@
 from django.db.models import Q
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
@@ -12,11 +14,8 @@ from store.filters import ProductFilter
 from store.models import Cart, Category, FavoriteProduct, Notification, Order, Product, ProductReview, \
     ProductReviewImage
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
-    CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, OrderListSerializer, \
-    OrderSerializer, ProductDetailSerializer, \
-    ProductReviewSerializer, \
-    ProductSerializer, \
-    UpdateCartItemSerializer
+    CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, OrderSerializer, \
+    ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, UpdateCartItemSerializer
 
 
 # Create your views here.
@@ -243,11 +242,7 @@ class CreateOrderView(GenericAPIView):
 
     def _get_order_by_transaction_ref(self, transaction_reference):
         customer = self.request.user
-        try:
-            order = Order.objects.get(customer=customer, transaction_ref=transaction_reference)
-        except Order.DoesNotExist:
-            return None
-        return order
+        return get_object_or_404(Order, customer=customer, transaction_ref=transaction_reference)
 
     def get(self, request, *args, **kwargs):
         transaction_reference = self.request.query_params.get('transaction_ref')
@@ -259,11 +254,13 @@ class CreateOrderView(GenericAPIView):
                 return Response(
                         {"message": "Order retrieved successfully", "data": serializer.data, "status": "succeed"},
                         status=status.HTTP_200_OK)
-            except Order.DoesNotExist:
+            except Http404:
                 return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         else:
             all_orders = Order.objects.filter(customer=customer)
-            serializer = OrderListSerializer(all_orders, many=True)
+            if not all_orders.exists():
+                return Response({"message": "Customer has no orders", "status": "succeed"}, status=status.HTTP_200_OK)
+            serializer = OrderSerializer(all_orders, many=True)
             return Response(
                     {"message": "All orders retrieved successfully", "data": serializer.data, "status": "succeed"},
                     status=status.HTTP_200_OK)

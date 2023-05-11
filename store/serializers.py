@@ -287,18 +287,37 @@ class UpdateCartItemSerializer(serializers.Serializer):
             })
 
         if size:
-            size_inv_obj = SizeInventory.objects.get(size__title__iexact=size, product=product)
-            item.extra_price = size_inv_obj.extra_price
             item.size = size
 
         if colour:
-            colour_inv_obj = ColourInventory.objects.get(colour__name__iexact=colour, product=product)
-            item.extra_price = colour_inv_obj.extra_price
             item.colour = colour
 
         item.save()
 
-        return item
+        # determine extra price based on the current values of the cart item after save
+        return self.determine_extra_price(item)
+
+    @staticmethod
+    def determine_extra_price(cart_item):
+
+        total_extra_price = 0
+
+        if cart_item.colour:
+            colour_obj = ColourInventory.objects.get(
+                    colour_name_iexact=cart_item.colour, product=cart_item.product)
+
+            total_extra_price += colour_obj.extra_price
+
+        if cart_item.size:
+            size_obj = SizeInventory.objects.get(
+                    size_title_iexact=cart_item.size, product=cart_item.product)
+
+            total_extra_price += size_obj.extra_price
+
+        cart_item.extra_price = total_extra_price
+        cart_item.save()
+
+        return cart_item
 
 
 class DeleteCartItemSerializer(serializers.Serializer):
@@ -322,15 +341,15 @@ class DeleteCartItemSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+    placed_at = serializers.SerializerMethodField()
+
     class Meta:
         model = Order
-        fields = ['id', 'transaction_ref', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
+        fields = ['id', 'transaction_ref', 'items', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
 
-
-class OrderListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Order
-        fields = ['id', 'transaction_ref', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
+    @staticmethod
+    def get_placed_at(obj: Order):
+        return obj.placed_at.strftime('%B, %d, %Y')
 
 
 class CreateOrderSerializer(serializers.Serializer):
