@@ -14,7 +14,7 @@ from store.filters import ProductFilter
 from store.models import Cart, Category, FavoriteProduct, Notification, Order, Product, ProductReview, \
     ProductReviewImage
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
-    CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, OrderSerializer, \
+    CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, OrderListSerializer, OrderSerializer, \
     ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, UpdateCartItemSerializer
 
 
@@ -260,7 +260,7 @@ class CreateOrderView(GenericAPIView):
             all_orders = Order.objects.filter(customer=customer)
             if not all_orders.exists():
                 return Response({"message": "Customer has no orders", "status": "succeed"}, status=status.HTTP_200_OK)
-            serializer = OrderSerializer(all_orders, many=True)
+            serializer = OrderListSerializer(all_orders, many=True)
             return Response(
                     {"message": "All orders retrieved successfully", "data": serializer.data, "status": "succeed"},
                     status=status.HTTP_200_OK)

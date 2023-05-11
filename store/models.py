@@ -77,6 +77,7 @@ class Product(BaseModel):
     description = models.TextField()
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
+    shipping_fee = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
@@ -307,8 +308,8 @@ class CartItem(BaseModel):
     def total_price(self):
         extra_price = self.extra_price
         if float(self.product.discount_price) > 0:
-            return self.quantity * (self.product.discount_price + extra_price)
-        return self.quantity * (self.product.price + extra_price)
+            return self.quantity * (self.product.discount_price + self.product.shipping_fee + extra_price)
+        return self.quantity * (self.product.price + self.product.shipping_fee + extra_price)
 
     def __str__(self):
         return f"Cart id({self.cart.id}) ---- {self.product.title} ---- {self.quantity}"

@@ -85,6 +85,7 @@ class ProductDetailSerializer(ProductSerializer):
         fields = ProductSerializer.Meta.fields + [
             "inventory",
             "condition",
+            "shipping_fee",
             "location",
             "discount_price",
             "average_ratings",
@@ -271,18 +272,28 @@ class UpdateCartItemSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         customer = self.context["request"].user
-        cart_id = self.validated_data.get("cart_id")
-        product_id = self.validated_data.get("product_id")
-        size = self.validated_data.get("size")
-        colour = self.validated_data.get("colour")
+        cart_id = self.validated_data["cart_id"]
+        product_id = self.validated_data["product_id"]
+        size = self.validated_data.get("size", "")
+        colour = self.validated_data.get("colour", "")
 
         try:
             cart = Cart.objects.get(id=cart_id, customer=customer)
             product = Product.objects.get(id=product_id)
             item = CartItem.objects.get(cart=cart, product=product)
-        except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
+        except Cart.DoesNotExist:
             raise ValidationError({
-                "message": "Invalid cart or product ID. Please check the provided IDs.",
+                "message": "Invalid cart ID. Please check the provided ID.",
+                "status": "failed",
+            })
+        except Product.DoesNotExist:
+            raise ValidationError({
+                "message": "Invalid product ID. Please check the provided ID.",
+                "status": "failed",
+            })
+        except CartItem.DoesNotExist:
+            raise ValidationError({
+                "message": "Cart item does not exist. Please add the product to the cart first.",
                 "status": "failed",
             })
 
@@ -292,32 +303,34 @@ class UpdateCartItemSerializer(serializers.Serializer):
         if colour:
             item.colour = colour
 
+        item.extra_price = self.determine_extra_price(item)
         item.save()
 
-        # determine extra price based on the current values of the cart item after save
-        return self.determine_extra_price(item)
+        return item
 
     @staticmethod
     def determine_extra_price(cart_item):
-
         total_extra_price = 0
 
         if cart_item.colour:
-            colour_obj = ColourInventory.objects.get(
-                    colour_name_iexact=cart_item.colour, product=cart_item.product)
-
-            total_extra_price += colour_obj.extra_price
+            try:
+                colour_obj = ColourInventory.objects.get(
+                        colour__name__iexact=cart_item.colour, product=cart_item.product
+                )
+                total_extra_price += colour_obj.extra_price
+            except ColourInventory.DoesNotExist:
+                pass
 
         if cart_item.size:
-            size_obj = SizeInventory.objects.get(
-                    size_title_iexact=cart_item.size, product=cart_item.product)
+            try:
+                size_obj = SizeInventory.objects.get(
+                        size__title__iexact=cart_item.size, product=cart_item.product
+                )
+                total_extra_price += size_obj.extra_price
+            except SizeInventory.DoesNotExist:
+                pass
 
-            total_extra_price += size_obj.extra_price
-
-        cart_item.extra_price = total_extra_price
-        cart_item.save()
-
-        return cart_item
+        return total_extra_price
 
 
 class DeleteCartItemSerializer(serializers.Serializer):
@@ -342,6 +355,7 @@ class DeleteCartItemSerializer(serializers.Serializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     placed_at = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -350,6 +364,38 @@ class OrderSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_placed_at(obj: Order):
         return obj.placed_at.strftime('%B, %d, %Y')
+
+    @staticmethod
+    def get_items(obj: Order):
+        return [
+            {
+                "customer": item.customer.full_name,
+                "title": item.product.title,
+                "price": item.product.price,
+                "shipping_fee": item.product.shipping_fee,
+                "quantity": item.quantity,
+                "size": item.size,
+                "colour": item.colour
+            }
+            for item in obj.items.all()
+        ]
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    placed_at = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['id', 'transaction_ref', 'items_count', 'total_price', 'placed_at', 'payment_status']
+
+    @staticmethod
+    def get_placed_at(obj: Order):
+        return obj.placed_at.strftime('%B, %d, %Y')
+
+    @staticmethod
+    def get_items_count(obj: Order):
+        return f"{obj.items.count()} item(s) ordered"
 
 
 class CreateOrderSerializer(serializers.Serializer):
@@ -404,7 +450,7 @@ class CreateOrderSerializer(serializers.Serializer):
 
     def to_representation(self, instance: Order):
         items = instance.items.values_list(
-                "id", "product__id", "product__title", "quantity"
+                "id", "product__id", "product__title", "quantity", "product__shipping_fee"
         )
         return {
             "id": instance.id,
@@ -420,6 +466,7 @@ class CreateOrderSerializer(serializers.Serializer):
                     "product_id": item[1],
                     "product__title": item[2],
                     "quantity": item[3],
+                    "shipping_fee": item[4]
                 }
                 for item in items
             ],
