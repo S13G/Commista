@@ -5,7 +5,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Cart, CartItem, Colour, ColourInventory, CouponCode, FavoriteProduct, Order, OrderItem, \
+from store.models import Address, Cart, CartItem, Colour, ColourInventory, Country, CouponCode, FavoriteProduct, Order, \
+    OrderItem, \
     Product, ProductImage, ProductReview, Size, SizeInventory
 
 
@@ -471,3 +472,28 @@ class CreateOrderSerializer(serializers.Serializer):
                 for item in items
             ],
         }
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ['id', 'first_name', 'last_name', 'street_address', 'second_street_address', 'phone_number']
+
+
+class CreateAddressSerializer(serializers.ModelSerializer):
+    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all())
+    second_street_address = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = Address
+        fields = ['country', 'first_name', 'last_name', 'street_address', 'second_street_address', 'city', 'state',
+                  'zip_code', 'phone_number']
+        read_only_fields = ['id']
+
+    def create(self, validated_data):
+        customer = self.context['request'].user
+        country_data = validated_data.pop('country')
+        country = Country.objects.get(id=country_data['id'])
+        address = Address.objects.create(country=country, customer=customer, **validated_data)
+        return address
+

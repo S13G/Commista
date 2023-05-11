@@ -11,10 +11,11 @@ from rest_framework.response import Response
 
 from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE
 from store.filters import ProductFilter
-from store.models import Cart, Category, FavoriteProduct, Notification, Order, Product, ProductReview, \
+from store.models import Address, Cart, Category, FavoriteProduct, Notification, Order, Product, ProductReview, \
     ProductReviewImage
-from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, CartItemSerializer, \
-    CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, OrderListSerializer, OrderSerializer, \
+from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, AddressSerializer, CartItemSerializer, \
+    CreateAddressSerializer, CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, \
+    OrderListSerializer, OrderSerializer, \
     ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, UpdateCartItemSerializer
 
 
@@ -210,7 +211,7 @@ class CartItemView(GenericAPIView):
         )
 
     def patch(self, request):
-        serializer = self.get_serializer(data=self.request.data, partial=True, context={'request': request})
+        serializer = self.get_serializer(data=self.request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         updated_cart_item = serializer.save()
         updated_cart_item_data = CartItemSerializer(updated_cart_item, context={'request': request}).data
@@ -219,7 +220,7 @@ class CartItemView(GenericAPIView):
                 status=status.HTTP_201_CREATED)
 
     def delete(self, request):
-        serializer = self.get_serializer(data=self.request.data, context={'request': request})
+        serializer = self.get_serializer(data=self.request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Item deleted successfully.", "status": "succeed"},
@@ -275,10 +276,59 @@ class CreateOrderView(GenericAPIView):
     def delete(self, request, *args, **kwargs):
         transaction_reference = self.request.query_params.get('transaction_ref')
         if not transaction_reference:
-            return Response({"message": "Transaction reference not provided."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Transaction reference is required."}, status=status.HTTP_400_BAD_REQUEST)
         order = self._get_order_by_transaction_ref(transaction_reference)
         if order is None:
             return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         order.delete()
         return Response({"message": "Order deleted successfully.", "status": "succeed"},
                         status=status.HTTP_204_NO_CONTENT)
+
+
+class CreateAddressView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CreateAddressSerializer
+
+    def get(self, request):
+        address_id = self.request.query_params.get('id')
+        if address_id:
+            try:
+                address = Address.objects.get(id=address_id, customer=self.request.user)
+                serializer = AddressSerializer(address)
+                return Response(
+                        {"message": "Address retrieved successfully", "data": serializer.data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+            except Address.DoesNotExist:
+                return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            addresses = Address.objects.filter(customer=self.request.user)
+            serializer = AddressSerializer(addresses, many=True)
+            return Response(
+                    {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "succeed"},
+                    status=status.HTTP_200_OK)
+
+    def patch(self, request, id):
+        try:
+            address = Address.objects.get(id=id, customer=self.request.user)
+        except Address.DoesNotExist:
+            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(address, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Address added successfully", "data": serializer.data},
+                        status=status.HTTP_201_CREATED)
+
+    def delete(self, request, id):
+        try:
+            address = Address.objects.get(id=id, customer=self.request.user)
+        except Address.DoesNotExist:
+            return Response({"message": "Address not found"}, status=status.HTTP_404_NOT_FOUND)
+        address.delete()
+        return Response({"message": "Address deleted successfully"})
