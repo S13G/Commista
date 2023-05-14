@@ -1,5 +1,4 @@
 import secrets
-from decimal import Decimal
 
 from autoslug import AutoSlugField
 from django.contrib.auth import get_user_model
@@ -77,10 +76,11 @@ class Product(BaseModel):
     description = models.TextField()
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
+    shipped_out_days = models.DecimalField(max_digits=6, decimal_places=2)
     shipping_fee = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
-    condition = models.CharField(max_length=2, choices=CONDITION_CHOICES)
+    condition = models.CharField(max_length=2, choices=CONDITION_CHOICES, blank=True, null=True)
     location = models.ForeignKey(ItemLocation, on_delete=models.SET_NULL, null=True, blank=False,
                                  related_name="products", )
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
@@ -258,12 +258,22 @@ class Order(BaseModel):
     transaction_ref = models.CharField(max_length=32, unique=True)
     placed_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
+    address = models.ForeignKey('Address', on_delete=models.SET_NULL, blank=True, null=True,
+                                related_name="orders_address")
     payment_status = models.CharField(
             max_length=1, choices=PAYMENT_STATUS, default=PAYMENT_PENDING
     )
     shipping_status = models.CharField(
             max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
     )
+
+    @property
+    # def orders_total_price(self):
+    #     all_orders_total_price = 0
+    #     for order in Order.objects.filter(customer=self.customer):
+    #         all_orders_total_price += order.total_price
+    #     print(all_orders_total_price)
+    #     return all_orders_total_price
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"

@@ -1,13 +1,13 @@
 import uuid
 
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from store.models import Address, Cart, CartItem, Colour, ColourInventory, Country, CouponCode, FavoriteProduct, Order, \
-    OrderItem, \
-    Product, ProductImage, ProductReview, Size, SizeInventory
+    OrderItem, Product, ProductImage, ProductReview, Size, SizeInventory
 
 
 class ColourSerializer(serializers.ModelSerializer):
@@ -183,7 +183,7 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 def validate_cart_item(attrs):
-    product_id = attrs["product_id"]
+    product_id = attrs.get("product_id")
     if not Product.objects.filter(id=product_id).exists():
         raise ValidationError(
                 {"message": "No product with the given ID was found.", "status": "failed"}
@@ -488,12 +488,15 @@ class CreateAddressSerializer(serializers.ModelSerializer):
         model = Address
         fields = ['country', 'first_name', 'last_name', 'street_address', 'second_street_address', 'city', 'state',
                   'zip_code', 'phone_number']
-        read_only_fields = ['id']
 
     def create(self, validated_data):
         customer = self.context['request'].user
-        country_data = validated_data.pop('country')
-        country = Country.objects.get(id=country_data['id'])
-        address = Address.objects.create(country=country, customer=customer, **validated_data)
+        country_data = self.validated_data['country']
+        try:
+            country = get_object_or_404(Country, id=country_data.id)
+        except Http404:
+            raise ValidationError(
+                    {"message": "No country with the given ID was found.", "status": "failed"}
+            )
+        address = Address.objects.create(country_id=country.id, customer=customer, **validated_data)
         return address
-

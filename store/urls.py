@@ -8,6 +8,7 @@ urlpatterns = [
     path("categories/all/", views.CategoryListView.as_view(), name="category_list"),
     path("categories/all-with-sales/", views.CategoryAndSalesView.as_view(), name="category_product_sales"),
     path("favorites/", views.FavoriteProductsView.as_view(), name="favorite_products"),
+    path("countries/", views.CountryView.as_view(), name="countries"),
     path("notifications/all/", views.NotificationView.as_view(), name="notifications"),
     path('orders/', views.CreateOrderView.as_view(), name='create_order'),
     path("product-reviews/add/", views.AddProductReviewView.as_view(), name="add_product_review"),
