@@ -1,3 +1,5 @@
+import requests
+from django.conf import settings
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -15,8 +17,8 @@ from store.models import Address, Cart, Category, Country, FavoriteProduct, Noti
     ProductReviewImage
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, AddressSerializer, CartItemSerializer, \
     CreateAddressSerializer, CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, \
-    OrderListSerializer, OrderSerializer, \
-    ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, UpdateCartItemSerializer
+    OrderListSerializer, OrderSerializer, ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, \
+    UpdateCartItemSerializer
 
 
 # Create your views here.
@@ -273,10 +275,9 @@ class CreateOrderView(GenericAPIView):
             if not all_orders.exists():
                 return Response({"message": "Customer has no orders", "status": "succeed"}, status=status.HTTP_200_OK)
             serializer = OrderListSerializer(all_orders, many=True)
-            all_orders_total_price = sum([order.total_price for order in all_orders])
             return Response(
-                    {"message": "All orders retrieved successfully", "all_orders_total_price": all_orders_total_price,
-                     "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
+                    {"message": "All orders retrieved successfully", "data": serializer.data, "status": "succeed"},
+                    status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={'request': request})
@@ -350,3 +351,34 @@ class CreateAddressView(GenericAPIView):
         address.delete()
         return Response({"message": "Address deleted successfully", "status": "succeed"},
                         status=status.HTTP_204_NO_CONTENT)
+
+
+class VerifyPaymentView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        customer = self.request.user
+        tx_ref = kwargs.get('tx_ref')
+        order = Order.objects.filter(customer=customer, transaction_ref=tx_ref)
+        if not order.exists():
+            return Response(
+                    {"message": "Customer does not have an order with that transaction reference", "status": "failed"},
+                    status=status.HTTP_404_NOT_FOUND)
+        order = order.get()
+        url = settings.FW_VERIFY_LINK
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f"Bearer {settings.FW_KEY}"
+        }
+
+        response = requests.get(url, headers=headers).json()
+        response_data = response.get('data')
+        response_status = response_data.get('status')
+        if response_status != 'successful':
+            return Response({"message": "Payment failed", "status": "failed"},
+                            status=status.HTTP_417_EXPECTATION_FAILED)
+        response_amount = response_data.get('charged_amount')
+        if order.total_price > response_amount:
+            return Response({"message": "Invalid payment", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"message": "Payment in progress", "status": "succeed"}, status=status.HTTP_200_OK)

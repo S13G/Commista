@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from django.db import transaction
 from django.http import Http404
@@ -355,16 +356,11 @@ class DeleteCartItemSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    placed_at = serializers.SerializerMethodField()
     items = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['id', 'transaction_ref', 'items', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
-
-    @staticmethod
-    def get_placed_at(obj: Order):
-        return obj.placed_at.strftime('%B, %d, %Y')
 
     @staticmethod
     def get_items(obj: Order):
@@ -374,6 +370,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 "title": item.product.title,
                 "price": item.product.price,
                 "shipping_fee": item.product.shipping_fee,
+                "shipping_out_date": (obj.placed_at + timedelta(days=item.product.shipped_out_days)),
                 "quantity": item.quantity,
                 "size": item.size,
                 "colour": item.colour
@@ -383,16 +380,11 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    placed_at = serializers.SerializerMethodField()
     items_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['id', 'transaction_ref', 'items_count', 'total_price', 'placed_at', 'payment_status']
-
-    @staticmethod
-    def get_placed_at(obj: Order):
-        return obj.placed_at.strftime('%B, %d, %Y')
 
     @staticmethod
     def get_items_count(obj: Order):
@@ -500,3 +492,18 @@ class CreateAddressSerializer(serializers.ModelSerializer):
             )
         address = Address.objects.create(country_id=country.id, customer=customer, **validated_data)
         return address
+
+
+class PaymentSerializer(serializers.Serializer):
+    order_id = serializers.UUIDField()
+
+    def validate_order_id(self, attrs):
+        customer = self.context['request'].user
+        order_id = attrs.get('order_id')
+
+        try:
+            orders = Order.objects.get(customer=customer, id=order_id)
+        except Order.DoesNotExist:
+            raise ValidationError(
+                    {"message": f"Customer does not have an order with this id: {order_id}", "status": "failed"})
+        return order_id

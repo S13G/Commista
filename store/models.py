@@ -76,7 +76,7 @@ class Product(BaseModel):
     description = models.TextField()
     style = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=6, decimal_places=2)
-    shipped_out_days = models.DecimalField(max_digits=6, decimal_places=2)
+    shipped_out_days = models.IntegerField()
     shipping_fee = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
@@ -260,20 +260,8 @@ class Order(BaseModel):
     total_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     address = models.ForeignKey('Address', on_delete=models.SET_NULL, blank=True, null=True,
                                 related_name="orders_address")
-    payment_status = models.CharField(
-            max_length=1, choices=PAYMENT_STATUS, default=PAYMENT_PENDING
-    )
-    shipping_status = models.CharField(
-            max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
-    )
-
-    @property
-    # def orders_total_price(self):
-    #     all_orders_total_price = 0
-    #     for order in Order.objects.filter(customer=self.customer):
-    #         all_orders_total_price += order.total_price
-    #     print(all_orders_total_price)
-    #     return all_orders_total_price
+    payment_status = models.CharField(max_length=2, choices=PAYMENT_STATUS, default=PAYMENT_PENDING)
+    shipping_status = models.CharField(max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING)
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"
@@ -282,9 +270,7 @@ class Order(BaseModel):
 class OrderItem(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="order_items", null=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="orderitems"
-    )
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     size = models.CharField(max_length=20, null=True)

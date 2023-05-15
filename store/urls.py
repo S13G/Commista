@@ -14,4 +14,5 @@ urlpatterns = [
     path("product-reviews/add/", views.AddProductReviewView.as_view(), name="add_product_review"),
     path("products/search-filters/", views.ProductsFilterView.as_view(), name="products_search_and_filters"),
     path("products/<str:product_id>/details/", views.ProductDetailView.as_view(), name="product_detail"),
+    path("verify-payment/<str:tx_ref>/", views.VerifyPaymentView.as_view(), name="verify-payment")
 ]

@@ -13,6 +13,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from decouple import config
+from python_flutterwave import payment
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -217,3 +218,6 @@ JAZZMIN_UI_TWEAKS = {
     "body_small_text": False,
     # "theme": "darkly",
 }
+
+FW_KEY = config("FLUTTERWAVE_SECRET_KEY")
+FW_VERIFY_LINK = config("FW_VERIFY_LINK")
