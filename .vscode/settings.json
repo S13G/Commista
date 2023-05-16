@@ -2,5 +2,7 @@
   "python.formatting.provider": "none",
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter"
-  }
+  },
+  "backgroundCover.imagePath": "/home/s13g/Neon/wallpaperflare.com_wallpaper (197).jpg",
+  "backgroundCover.randomImageFolder": "/home/s13g/Neon",
 }

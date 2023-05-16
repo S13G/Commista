@@ -502,7 +502,7 @@ class PaymentSerializer(serializers.Serializer):
         order_id = attrs.get('order_id')
 
         try:
-            orders = Order.objects.get(customer=customer, id=order_id)
+            Order.objects.get(customer=customer, id=order_id)
         except Order.DoesNotExist:
             raise ValidationError(
                     {"message": f"Customer does not have an order with this id: {order_id}", "status": "failed"})
