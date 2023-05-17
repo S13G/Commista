@@ -1,6 +1,7 @@
 import secrets
 
 from autoslug import AutoSlugField
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -51,13 +52,6 @@ class Colour(BaseModel):
         return f"{self.name} ---- {self.hex_code}"
 
 
-class ItemLocation(BaseModel):
-    location = models.CharField(max_length=255)
-
-    def __str__(self):
-        return self.location
-
-
 class ProductsManager(models.Manager):
     def get_queryset(self):
         return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews',
@@ -81,8 +75,6 @@ class Product(BaseModel):
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES, blank=True, null=True)
-    location = models.ForeignKey(ItemLocation, on_delete=models.SET_NULL, null=True, blank=False,
-                                 related_name="products", )
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     objects = models.Manager()
@@ -262,6 +254,10 @@ class Order(BaseModel):
                                 related_name="orders_address")
     payment_status = models.CharField(max_length=2, choices=PAYMENT_STATUS, default=PAYMENT_PENDING)
     shipping_status = models.CharField(max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING)
+
+    @property
+    def estimated_shipping_date(self):
+        return self.placed_at + relativedelta(months=1)
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"

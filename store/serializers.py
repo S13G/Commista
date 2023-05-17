@@ -227,15 +227,21 @@ class AddCartItemSerializer(serializers.Serializer):
         cart_id = self.validated_data.get("cart_id", str(uuid.uuid4()))
 
         product = get_object_or_404(Product, id=product_id)
+        if product.inventory <= 0:
+            raise ValidationError({"message": "This product is not available", "status": "failed"})
         cart, _ = Cart.objects.get_or_create(id=cart_id, customer=customer)
 
         extra_price = 0
         if size:
             size_inv = get_object_or_404(SizeInventory, size__title__iexact=size, product=product)
+            if size_inv.quantity <= 0:
+                raise ValidationError({"message": "Size for this product is not available", "status": "failed"})
             extra_price += size_inv.extra_price
 
         if colour:
-            colour_inv = get_object_or_404(ColourInventory, colour__name__iexact=colour, product=product)
+            colour_inv = get_object_or_404(ColourInventory, colour__name__iexact=colour, product=product)  #
+            if colour_inv.quantity <= 0:
+                raise ValidationError({"message": "Colour for this product is not available", "status": "failed"})
             extra_price += colour_inv.extra_price
 
         cart_item = cart.items.filter(product=product, size=size, colour=colour).first()
@@ -360,7 +366,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'transaction_ref', 'items', 'total_price', 'placed_at', 'shipping_status', 'payment_status']
+        fields = ['id', 'transaction_ref', 'items', 'total_price', 'placed_at', 'estimated_shipping_date',
+                  'shipping_status', 'payment_status']
 
     @staticmethod
     def get_items(obj: Order):
@@ -384,7 +391,8 @@ class OrderListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'transaction_ref', 'items_count', 'total_price', 'placed_at', 'payment_status']
+        fields = ['id', 'transaction_ref', 'items_count', 'total_price', 'placed_at', 'estimated_shipping_date',
+                  'payment_status']
 
     @staticmethod
     def get_items_count(obj: Order):

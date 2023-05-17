@@ -9,7 +9,7 @@ from store.forms import ProductAdminForm
 from store.models import *
 
 # Register your models here.
-admin.site.register((Size, ItemLocation,))
+admin.site.register((Size,))
 
 
 @admin.register(Category)

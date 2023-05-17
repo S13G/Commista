@@ -11,7 +11,7 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, SHIPPING_STATUS_SHIPPED
+from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, SHIPPING_STATUS_PROCESSING
 from store.filters import ProductFilter
 from store.models import Address, Cart, Category, ColourInventory, Country, FavoriteProduct, Notification, Order, \
     Product, ProductReview, \
@@ -384,7 +384,7 @@ class VerifyPaymentView(GenericAPIView):
         if order.total_price > response_amount:
             return Response({"message": "Invalid payment", "status": "failed"}, status=status.HTTP_406_NOT_ACCEPTABLE)
         order.payment_status = PAYMENT_COMPLETE
-        order.shipping_status = SHIPPING_STATUS_SHIPPED
+        order.shipping_status = SHIPPING_STATUS_PROCESSING
         order.save()
         for item in order.items.all():
             item.ordered = True
