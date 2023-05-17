@@ -11,7 +11,8 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, SHIPPING_STATUS_PROCESSING
+from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, PAYMENT_FAILED, \
+    SHIPPING_STATUS_PROCESSING
 from store.filters import ProductFilter
 from store.models import Address, Cart, Category, ColourInventory, Country, FavoriteProduct, Notification, Order, \
     Product, ProductReview, \
@@ -364,11 +365,21 @@ class VerifyPaymentView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PaymentSerializer
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=self.request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        url = f"{settings.FW_VERIFY_LINK}{order.transaction_ref}"
+    def get(self, request, *args, **kwargs):
+        customer = self.request.user
+        tx_ref = self.request.query_params.get('tx_ref')
+
+        try:
+            order = get_object_or_404(Order, customer=customer, transaction_ref=tx_ref)
+        except Http404:
+            return Response(
+                    {"message": f"Customer does not have an order with this transaction reference {tx_ref}",
+                     "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        if order.address is None:
+            return Response({"message": "This order is missing an address", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        url = f"{settings.FW_VERIFY_LINK}{tx_ref}"
+        print(url)
         headers = {
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {settings.FW_KEY}"
@@ -378,6 +389,8 @@ class VerifyPaymentView(GenericAPIView):
         response_data = response.get('data')
         response_status = response_data.get('status')
         if response_status != 'successful':
+            order.payment_status = PAYMENT_FAILED
+            order.save()
             return Response({"message": "Payment failed", "status": "failed"},
                             status=status.HTTP_417_EXPECTATION_FAILED)
         response_amount = response_data.get('charged_amount')
@@ -392,13 +405,40 @@ class VerifyPaymentView(GenericAPIView):
             item.product.save()
 
             if item.size:
-                item_size_inventory = get_object_or_404(SizeInventory, product=item.product)
+                item_size_inventory = get_object_or_404(SizeInventory, product=item.product,
+                                                        size__title__iexact=item.size)
                 item_size_inventory.quantity -= item.quantity
                 item_size_inventory.save()
 
             if item.colour:
-                item_colour_inventory = get_object_or_404(ColourInventory, product=item.product)
+                item_colour_inventory = get_object_or_404(ColourInventory, product=item.product,
+                                                          colour__name__iexact=item.colour)
                 item_colour_inventory.quantity -= item.quantity
                 item_colour_inventory.save()
             item.save()
         return Response({"message": "Payment successful", "status": "succeed"}, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        customer = self.request.user
+        serializer = self.serializer_class(data=self.request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        address_id = serializer.validated_data['address_id']
+
+        # Check if the address is already added to the order
+        try:
+            order = Order.objects.get(customer=customer, transaction_ref=serializer.validated_data['tx_ref'])
+            if order.address_id == address_id:
+                return Response(
+                        {"message": "This address is already added to the order."},
+                        status=status.HTTP_400_BAD_REQUEST
+                )
+        except Order.DoesNotExist:
+            return Response(
+                    {"message": "Customer does not have an order with this transaction reference."},
+                    status=status.HTTP_404_NOT_FOUND
+            )
+        serializer.save()
+        return Response(
+                {"message": "Address added to the order successfully.", "status": "succeed"},
+                status=status.HTTP_200_OK
+        )

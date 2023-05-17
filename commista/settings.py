@@ -47,15 +47,16 @@ LOCAL_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "cloudinary_storage",
+    "corsheaders",
+    "debug_toolbar",
+    "django_countries",
     "django_filters",
     "drf_spectacular",
     "rest_framework",
     "rest_framework.authtoken",  # for testing purposes
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
-    "debug_toolbar",
-    "cloudinary_storage",
-    "corsheaders",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS
@@ -135,7 +136,10 @@ WSGI_APPLICATION = "commista.wsgi.application"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "commista.sqlite"}
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "commista.sqlite"
+    }
 }
 
 # Password validation
@@ -185,12 +189,6 @@ STORAGES = {
     },
 }
 
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": config("CLOUDINARY_API_KEY"),
-    "API_SECRET": config("CLOUDINARY_API_SECRET"),
-}
-
 MEDIA_URL = "media/"
 
 MEDIA_ROOT = BASE_DIR / "static/media"
@@ -200,19 +198,21 @@ MEDIA_ROOT = BASE_DIR / "static/media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# EMAIL_USE_TLS = config("EMAIL_USE_TLS")
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-EMAIL_USE_SSL = config("EMAIL_USE_SSL")
+# Email settings for SSL(Mainly for development)
 
-EMAIL_HOST = config("EMAIL_HOST")
-
-EMAIL_HOST_USER = config("EMAIL_HOST_USER")
-
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
-
-EMAIL_PORT = 465
-
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL_USE_SSL = True
+#
+# EMAIL_HOST = config("EMAIL_HOST")
+#
+# EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+#
+# EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+#
+# EMAIL_PORT = 465
+#
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # JAZZMIN
 JAZZMIN_UI_TWEAKS = {
@@ -221,6 +221,9 @@ JAZZMIN_UI_TWEAKS = {
     # "theme": "darkly",
 }
 
+# Flutterwave variables
 FW_KEY = config("FLUTTERWAVE_SECRET_KEY")
+
 FW_PUBLIC_KEY = config("FLUTTERWAVE_PUBLIC_KEY")
+
 FW_VERIFY_LINK = config("FW_VERIFY_LINK")

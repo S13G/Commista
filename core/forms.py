@@ -7,10 +7,10 @@ from core.models import User
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
-        fields = ("email", "full_name")
+        fields = ("email", "first_name", "last_name")
 
 
 class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = User
-        fields = ("email", "full_name")
+        fields = ("email", "first_name", "last_name")

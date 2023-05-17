@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="commista.sqlite" uuid="220fa032-9ebc-4d14-bea4-ad033795467d">
+    <data-source source="LOCAL" name="commista.sqlite" uuid="fb23fb5c-de5f-4750-a5c7-148a98274545">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>

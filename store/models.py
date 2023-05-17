@@ -4,6 +4,7 @@ from autoslug import AutoSlugField
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
+from django_countries.fields import CountryField
 from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
@@ -75,6 +76,7 @@ class Product(BaseModel):
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     percentage_off = models.PositiveIntegerField(default=0)
     condition = models.CharField(max_length=2, choices=CONDITION_CHOICES, blank=True, null=True)
+    location = CountryField()
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     objects = models.Manager()
