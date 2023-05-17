@@ -20,11 +20,11 @@ class CategoryAdmin(admin.ModelAdmin):
 
     @admin.display(ordering="products_count")
     def products_count(self, category):
-        url = (reverse("admin:store_product_changelist") 
-               + "?" 
+        url = (reverse("admin:store_product_changelist")
+               + "?"
                + urlencode({"category__id": str(category.id)})
-            )
-        
+               )
+
         return format_html('<a href="{}">{} Products</a>', url, category.products_count)
 
     def get_queryset(self, request):
@@ -66,11 +66,12 @@ class ColourInventoryInline(admin.TabularInline):
     model = ColourInventory
     extra = 1
 
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     inlines = (ProductImageAdmin, SizeInventoryInline, ColourInventoryInline)
     form = ProductAdminForm
-    list_display = ("title", "category", "price", "percentage_off", "discount_price", 
+    list_display = ("title", "category", "price", "percentage_off", "discount_price",
                     "average_ratings", "inventory", "inventory_status",)
     list_filter = ("category", "condition", "percentage_off", InventoryFilter)
     list_per_page = 30
@@ -78,7 +79,7 @@ class ProductAdmin(admin.ModelAdmin):
     ordering = ("title", "category", "percentage_off",)
     readonly_fields = ("product_images",)
     search_fields = ("title", "category__name",)
-    
+
     @staticmethod
     def inventory_status(obj: Product):
         if obj.inventory < 10:

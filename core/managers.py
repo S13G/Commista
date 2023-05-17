@@ -52,4 +52,4 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Email address is required")
         if not full_name:
             raise ValueError("Full name is required")
-        return self.create_user(email, full_name, password, **extra_fields)
+        return self.create_user(email=email, full_name=full_name, password=password, **extra_fields)

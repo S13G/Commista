@@ -11,13 +11,15 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE
+from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, SHIPPING_STATUS_SHIPPED
 from store.filters import ProductFilter
-from store.models import Address, Cart, Category, Country, FavoriteProduct, Notification, Order, Product, ProductReview, \
-    ProductReviewImage
+from store.models import Address, Cart, Category, ColourInventory, Country, FavoriteProduct, Notification, Order, \
+    Product, ProductReview, \
+    ProductReviewImage, SizeInventory
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, AddressSerializer, CartItemSerializer, \
     CreateAddressSerializer, CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, \
-    OrderListSerializer, OrderSerializer, ProductDetailSerializer, ProductReviewSerializer, ProductSerializer, \
+    OrderListSerializer, OrderSerializer, PaymentSerializer, ProductDetailSerializer, ProductReviewSerializer, \
+    ProductSerializer, \
     UpdateCartItemSerializer
 
 
@@ -298,12 +300,12 @@ class CreateOrderView(GenericAPIView):
                         status=status.HTTP_204_NO_CONTENT)
 
 
-class CreateAddressView(GenericAPIView):
+class ListAndCreateAddressView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CreateAddressSerializer
 
     def get(self, request):
-        address_id = self.request.query_params.get('id')
+        address_id = self.request.query_params.get('address_id')
         if address_id:
             try:
                 address = Address.objects.get(id=address_id, customer=self.request.user)
@@ -323,27 +325,32 @@ class CreateAddressView(GenericAPIView):
                     {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "succeed"},
                     status=status.HTTP_200_OK)
 
-    def patch(self, request):
-        address_id = self.request.query_params.get('id')
-        try:
-            address = Address.objects.get(id=address_id, customer=self.request.user)
-        except Address.DoesNotExist:
-            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = self.get_serializer(address, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "succeed"},
-                        status=status.HTTP_200_OK)
-
     def post(self, request):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Address added successfully", "data": serializer.data},
                         status=status.HTTP_201_CREATED)
 
-    def delete(self, request):
-        address_id = self.request.query_params.get('id')
+
+class UpdateAndDeleteAddressView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CreateAddressSerializer
+
+    def patch(self, request, *args, **kwargs):
+        address_id = self.kwargs.get('address_id')
+        try:
+            address = Address.objects.get(id=address_id, customer=self.request.user)
+        except Address.DoesNotExist:
+            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.serializer_class(address, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        address_id = self.kwargs.get('address_id')
         try:
             address = Address.objects.get(id=address_id, customer=self.request.user)
         except Address.DoesNotExist:
@@ -355,17 +362,13 @@ class CreateAddressView(GenericAPIView):
 
 class VerifyPaymentView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = PaymentSerializer
 
-    def get(self, request, *args, **kwargs):
-        customer = self.request.user
-        tx_ref = kwargs.get('tx_ref')
-        order = Order.objects.filter(customer=customer, transaction_ref=tx_ref)
-        if not order.exists():
-            return Response(
-                    {"message": "Customer does not have an order with that transaction reference", "status": "failed"},
-                    status=status.HTTP_404_NOT_FOUND)
-        order = order.get()
-        url = settings.FW_VERIFY_LINK
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        url = f"{settings.FW_VERIFY_LINK}{order.transaction_ref}"
         headers = {
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {settings.FW_KEY}"
@@ -379,6 +382,23 @@ class VerifyPaymentView(GenericAPIView):
                             status=status.HTTP_417_EXPECTATION_FAILED)
         response_amount = response_data.get('charged_amount')
         if order.total_price > response_amount:
-            return Response({"message": "Invalid payment", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Invalid payment", "status": "failed"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        order.payment_status = PAYMENT_COMPLETE
+        order.shipping_status = SHIPPING_STATUS_SHIPPED
+        order.save()
+        for item in order.items.all():
+            item.ordered = True
+            item.product.inventory -= item.quantity
+            item.product.save()
 
-        return Response({"message": "Payment in progress", "status": "succeed"}, status=status.HTTP_200_OK)
+            if item.size:
+                item_size_inventory = get_object_or_404(SizeInventory, product=item.product)
+                item_size_inventory.quantity -= item.quantity
+                item_size_inventory.save()
+
+            if item.colour:
+                item_colour_inventory = get_object_or_404(ColourInventory, product=item.product)
+                item_colour_inventory.quantity -= item.quantity
+                item_colour_inventory.save()
+            item.save()
+        return Response({"message": "Payment successful", "status": "succeed"}, status=status.HTTP_200_OK)

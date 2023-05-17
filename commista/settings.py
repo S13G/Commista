@@ -61,7 +61,6 @@ THIRD_PARTY_APPS = [
 INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS
 
 REST_FRAMEWORK = {
-    "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -223,4 +222,5 @@ JAZZMIN_UI_TWEAKS = {
 }
 
 FW_KEY = config("FLUTTERWAVE_SECRET_KEY")
+FW_PUBLIC_KEY = config("FLUTTERWAVE_PUBLIC_KEY")
 FW_VERIFY_LINK = config("FW_VERIFY_LINK")

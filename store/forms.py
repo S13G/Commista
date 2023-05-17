@@ -26,6 +26,14 @@ class ProductAdminForm(forms.ModelForm):
 
         total_quantity = color_total_quantity + size_total_quantity
         product_inventory = int(self.data.get("inventory", ))
+        flash_sale_start_date = self.cleaned_data.get("flash_sale_start_date")
+        flash_sale_end_date = self.cleaned_data.get("flash_sale_end_date")
+
+        if flash_sale_start_date and flash_sale_end_date:
+            if flash_sale_start_date >= flash_sale_end_date:
+                self.add_error(None, ValidationError("Flash sale end date must be greater than the start date."))
+            elif flash_sale_start_date == flash_sale_end_date:
+                self.add_error(None, ValidationError("Flash sale start and end date must not be the same."))
 
         if total_quantity > product_inventory:
             self.add_error(None, ValidationError(

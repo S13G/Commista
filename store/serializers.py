@@ -495,15 +495,36 @@ class CreateAddressSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.Serializer):
-    order_id = serializers.UUIDField()
+    order_tx_ref = serializers.CharField()
+    address_id = serializers.UUIDField()
 
-    def validate_order_id(self, attrs):
+    def validate(self, attrs):
         customer = self.context['request'].user
-        order_id = attrs.get('order_id')
+        order_tx_ref = attrs.get('order_tx_ref')
+        address_id = attrs.get('address_id')
 
         try:
-            Order.objects.get(customer=customer, id=order_id)
+            Order.objects.get(customer=customer, transaction_ref=order_tx_ref)
         except Order.DoesNotExist:
-            raise ValidationError(
-                    {"message": f"Customer does not have an order with this id: {order_id}", "status": "failed"})
-        return order_id
+            raise serializers.ValidationError(
+                    f"Customer does not have an order with this transaction reference: {order_tx_ref}")
+
+        try:
+            Address.objects.get(customer=customer, id=address_id)
+        except Address.DoesNotExist:
+            raise serializers.ValidationError(f"Customer does not have an address with this id: {address_id}")
+
+        return attrs
+
+    def save(self, **kwargs):
+        customer = self.context['request'].user
+        order_tx_ref = self.validated_data['order_tx_ref']
+        address_id = self.validated_data['address_id']
+
+        order = Order.objects.get(customer=customer, transaction_ref=order_tx_ref)
+        address = Address.objects.get(customer=customer, id=address_id)
+
+        order.address = address
+        order.save()
+
+        return order
