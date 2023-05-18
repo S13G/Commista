@@ -201,19 +201,21 @@ class ListUpdateProfileView(GenericAPIView):
         except Profile.DoesNotExist:
             return Response({"message": "Profile for this customer account does not exist", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
-        serializer = UpdateProfileSerializer(customer_profile, data=request.data, partial=True)
+        serializer = UpdateProfileSerializer(data=request.data, partial=True, instance=customer_profile)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        first_name = serializer.validated_data.get('first_name', '')
-        last_name = serializer.validated_data.get('last_name', '')
+        full_name = serializer.validated_data.get('full_name', '')
 
-        if first_name:
+        if full_name:
+            first_name, *last_name_parts = full_name.split(" ")
+            last_name = ' '.join(last_name_parts)
             customer_account.first_name = first_name
-        if last_name:
             customer_account.last_name = last_name
-        customer_account.save()
-        return Response({"message": "Profile updated successfully", "status": "succeed"}, status=status.HTTP_200_OK)
+            customer_account.save()
+        data = serializer.data
+        return Response({"message": "Profile updated successfully", "data": data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
 
 
 class RefreshView(TokenRefreshView):

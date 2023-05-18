@@ -1,8 +1,9 @@
 import re
 
-from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator, RegexValidator
 from django.core.validators import validate_email
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from core.models import Profile, User
 
@@ -17,16 +18,16 @@ class ChangeEmailSerializer(serializers.Serializer):
 
         # validate code
         if not code:
-            raise serializers.ValidationError("Code is required")
+            raise serializers.ValidationError({"message": "Code is required", "status": "failed"})
 
         if not re.match("^[0-9]{4}$", str(code)):
-            raise serializers.ValidationError("Code must be a 4-digit number")
+            raise serializers.ValidationError({"message": "Code must be 4-digit number", "status": "failed"})
 
         # validate email
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
 
         return attrs
 
@@ -40,10 +41,10 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         # validate code
         if not code:
-            raise serializers.ValidationError("Code is required")
+            raise serializers.ValidationError({"message": "Code is required", "status": "failed"})
 
         if not re.match("^[0-9]{4}$", str(code)):
-            raise serializers.ValidationError("Code must be a 4-digit number")
+            raise serializers.ValidationError({"message": "Code must be 4-digit number", "status": "failed"})
 
         return attrs
 
@@ -59,7 +60,7 @@ class LoginSerializer(serializers.Serializer):
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
 
         return attrs
 
@@ -71,11 +72,6 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ["_avatar", "full_name", "gender", "birthday", "email", "phone_number"]
-
-
-class UpdateProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        fields = ["_avatar", "first_name", "last_name", "gender", "birthday", "phone_number"]
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -93,13 +89,13 @@ class RegisterSerializer(serializers.Serializer):
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
 
         # validate full_name
         if not first_name:
-            raise serializers.ValidationError("First name is required")
+            raise serializers.ValidationError({"message": "First name is required", "status": "failed"})
         if not last_name:
-            raise serializers.ValidationError("Last name is required")
+            raise serializers.ValidationError({"message": "Last name is required", "status": "failed"})
 
         return attrs
 
@@ -117,7 +113,7 @@ class RequestEmailChangeCodeSerializer(serializers.Serializer):
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
         return attrs
 
 
@@ -131,7 +127,7 @@ class RequestNewPasswordCodeSerializer(serializers.Serializer):
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
         return attrs
 
 
@@ -145,8 +141,28 @@ class ResendEmailVerificationSerializer(serializers.Serializer):
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
         return attrs
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(max_length=255)
+    _avatar = serializers.ImageField(validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])])
+    gender = serializers.CharField(max_length=1, validators=[RegexValidator(r'^[MFO]$')])
+    birthday = serializers.DateField()
+    phone_number = serializers.CharField(max_length=20)
+
+    class Meta:
+        model = Profile
+        fields = ['_avatar', 'full_name', 'gender', 'birthday', 'phone_number']
+
+    @staticmethod
+    def validate_phone_number(value):
+        if not value.startswith('+'):
+            raise serializers.ValidationError("Phone number must start with a plus sign (+)")
+        if not value[1:].isdigit():
+            raise serializers.ValidationError("Phone number must only contain digits after the plus sign (+)")
+        return value
 
 
 class VerifySerializer(serializers.Serializer):
@@ -161,13 +177,13 @@ class VerifySerializer(serializers.Serializer):
         try:
             validate_email(email)
         except ValidationError:
-            raise serializers.ValidationError("Invalid email format")
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
 
         # validate code
         if not code:
-            raise serializers.ValidationError("Code is required")
+            raise serializers.ValidationError({"message": "Code is required", "status": "failed"})
 
         if not re.match("^[0-9]{4}$", str(code)):
-            raise serializers.ValidationError("Code must be a 4-digit number")
+            raise serializers.ValidationError({"message": "Code must be a 4-digit number", "status": "failed"})
 
         return attrs
