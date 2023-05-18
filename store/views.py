@@ -15,18 +15,16 @@ from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPL
     SHIPPING_STATUS_PROCESSING
 from store.filters import ProductFilter
 from store.models import Address, Cart, Category, ColourInventory, Country, FavoriteProduct, Notification, Order, \
-    Product, ProductReview, \
-    ProductReviewImage, SizeInventory
+    Product, ProductReview, ProductReviewImage, SizeInventory
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, AddressSerializer, CartItemSerializer, \
     CreateAddressSerializer, CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, \
     OrderListSerializer, OrderSerializer, PaymentSerializer, ProductDetailSerializer, ProductReviewSerializer, \
-    ProductSerializer, \
-    UpdateCartItemSerializer
+    ProductSerializer, UpdateCartItemSerializer
 
 
 # Create your views here.
 
-class CategoryAndSalesView(GenericAPIView):
+class CategorySalesView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
@@ -135,7 +133,7 @@ class ProductDetailView(GenericAPIView):
                          }, "status": "succeed"}, status=status.HTTP_200_OK)
 
 
-class AddProductReviewView(GenericAPIView):
+class CreateProductReviewView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = AddProductReviewSerializer
 
@@ -156,7 +154,7 @@ class AddProductReviewView(GenericAPIView):
         return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
 
 
-class NotificationView(GenericAPIView):
+class ListNotificationView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -170,7 +168,7 @@ class NotificationView(GenericAPIView):
                         status.HTTP_200_OK)
 
 
-class CategoryListView(GenericAPIView):
+class ListCategoryView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     @staticmethod
@@ -199,12 +197,12 @@ class ProductsFilterView(ListAPIView):
                         status.HTTP_200_OK)
 
 
-class CartItemView(GenericAPIView):
+class ListCartItemView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         customer = self.request.user
-        cart_id = self.request.query_params.get('cart_id')
+        cart_id = self.kwargs.get("cart_id")
         if not cart_id:
             return Response({"message": "Cart ID not provided."}, status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -215,6 +213,10 @@ class CartItemView(GenericAPIView):
         serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
         return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price,
                          "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
+
+
+class CreateUpdateDeleteCartItemView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
@@ -253,7 +255,7 @@ class CartItemView(GenericAPIView):
             return super().get_serializer_class()
 
 
-class CreateOrderView(GenericAPIView):
+class ListCreateOrderView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CreateOrderSerializer
 
@@ -289,8 +291,16 @@ class CreateOrderView(GenericAPIView):
         return Response({"message": "Order created successfully", "data": serializer.to_representation(order),
                          "status": "succeed"}, status=status.HTTP_201_CREATED)
 
+
+class DeleteOrderView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_order_by_transaction_ref(self, transaction_reference):
+        customer = self.request.user
+        return get_object_or_404(Order, customer=customer, transaction_ref=transaction_reference)
+
     def delete(self, request, *args, **kwargs):
-        transaction_reference = self.request.query_params.get('transaction_ref')
+        transaction_reference = self.kwargs.get('transaction_ref')
         if not transaction_reference:
             return Response({"message": "Transaction reference is required."}, status=status.HTTP_400_BAD_REQUEST)
         order = self._get_order_by_transaction_ref(transaction_reference)
@@ -301,7 +311,7 @@ class CreateOrderView(GenericAPIView):
                         status=status.HTTP_204_NO_CONTENT)
 
 
-class ListAndCreateAddressView(GenericAPIView):
+class ListCreateAddressView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CreateAddressSerializer
 
@@ -334,7 +344,7 @@ class ListAndCreateAddressView(GenericAPIView):
                         status=status.HTTP_201_CREATED)
 
 
-class UpdateAndDeleteAddressView(GenericAPIView):
+class UpdateDeleteAddressView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CreateAddressSerializer
 
@@ -361,13 +371,41 @@ class UpdateAndDeleteAddressView(GenericAPIView):
                         status=status.HTTP_204_NO_CONTENT)
 
 
+class CreateOrderAddress(GenericAPIView):
+
+    def post(self, request, *args, **kwargs):
+        customer = self.request.user
+        serializer = self.serializer_class(data=self.request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        address_id = serializer.validated_data['address_id']
+
+        # Check if the address is already added to the order
+        try:
+            order = Order.objects.get(customer=customer, transaction_ref=serializer.validated_data['tx_ref'])
+            if order.address_id == address_id:
+                return Response(
+                        {"message": "This address is already added to the order."},
+                        status=status.HTTP_400_BAD_REQUEST
+                )
+        except Order.DoesNotExist:
+            return Response(
+                    {"message": "Customer does not have an order with this transaction reference."},
+                    status=status.HTTP_404_NOT_FOUND
+            )
+        serializer.save()
+        return Response(
+                {"message": "Address added to the order successfully.", "status": "succeed"},
+                status=status.HTTP_200_OK
+        )
+
+
 class VerifyPaymentView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PaymentSerializer
 
     def get(self, request, *args, **kwargs):
         customer = self.request.user
-        tx_ref = self.request.query_params.get('tx_ref')
+        tx_ref = self.kwargs.get('tx_ref')
 
         try:
             order = get_object_or_404(Order, customer=customer, transaction_ref=tx_ref)
@@ -417,28 +455,3 @@ class VerifyPaymentView(GenericAPIView):
                 item_colour_inventory.save()
             item.save()
         return Response({"message": "Payment successful", "status": "succeed"}, status=status.HTTP_200_OK)
-
-    def post(self, request, *args, **kwargs):
-        customer = self.request.user
-        serializer = self.serializer_class(data=self.request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        address_id = serializer.validated_data['address_id']
-
-        # Check if the address is already added to the order
-        try:
-            order = Order.objects.get(customer=customer, transaction_ref=serializer.validated_data['tx_ref'])
-            if order.address_id == address_id:
-                return Response(
-                        {"message": "This address is already added to the order."},
-                        status=status.HTTP_400_BAD_REQUEST
-                )
-        except Order.DoesNotExist:
-            return Response(
-                    {"message": "Customer does not have an order with this transaction reference."},
-                    status=status.HTTP_404_NOT_FOUND
-            )
-        serializer.save()
-        return Response(
-                {"message": "Address added to the order successfully.", "status": "succeed"},
-                status=status.HTTP_200_OK
-        )

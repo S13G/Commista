@@ -27,8 +27,19 @@ class CustomUserAdmin(UserAdmin):
         "is_active",
     )
     fieldsets = (
-        ("Personal Information", {"fields": (
-            "email", "first_name", "last_name", "password", "email_changed", "is_verified")}),
+        (
+            "Personal Information",
+            {
+                "fields": (
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "password",
+                    "email_changed",
+                    "is_verified",
+                )
+            },
+        ),
         (
             "Permissions",
             {"fields": ("is_staff", "is_active", "groups", "user_permissions")},
@@ -66,17 +77,15 @@ class ProfileAdmin(admin.ModelAdmin):
         "phone_number",
     )
     ordering = ("user__email",)
-    search_fields = (
-        "email_address",
-    )
+    search_fields = ("email_address",)
 
     @staticmethod
-    def full_name(obj: User):
-        return obj.get_full_name()
+    def full_name(obj: Profile):
+        return obj.user.full_name
 
     @staticmethod
-    def email_address(obj: User):
-        return obj.email
+    def email_address(obj: Profile):
+        return obj.user.email
 
 
 admin.site.register(User, CustomUserAdmin)

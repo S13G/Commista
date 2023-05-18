@@ -138,7 +138,7 @@ WSGI_APPLICATION = "commista.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "commista.sqlite"
+        "NAME": BASE_DIR / "commista.sqlite3"
     }
 }
 
@@ -198,21 +198,21 @@ MEDIA_ROOT = BASE_DIR / "static/media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-# Email settings for SSL(Mainly for development)
+# Email settings for SSL(Mainly for development and tests)
 
-# EMAIL_USE_SSL = True
-#
-# EMAIL_HOST = config("EMAIL_HOST")
-#
-# EMAIL_HOST_USER = config("EMAIL_HOST_USER")
-#
-# EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
-#
-# EMAIL_PORT = 465
-#
-# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_USE_SSL = True
+
+EMAIL_HOST = config("EMAIL_HOST")
+
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+
+EMAIL_PORT = 465
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # JAZZMIN
 JAZZMIN_UI_TWEAKS = {

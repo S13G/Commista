@@ -27,13 +27,16 @@ class Authentication(APITestCase):
         self.resend_verification_code = reverse("resend_verification_code")
         self.verify_email = reverse("verify_email")
         self.logout = reverse("logout")
+        self.profile = reverse("list_update_profile")
 
         # values
         self.code = random.randint(1000, 9999)
         self.fake = Faker()
         self.expiry_date = timezone.now() + timezone.timedelta(minutes=15)
         self.user_data = {
-            "full_name": "John Doe",
+            "first_name": "John",
+            "last_name": "Doe",
+            # "full_name": "John Doe",
             "email": "lookouttest91@zohomail.com",
             "password": "string"
         }
@@ -168,5 +171,9 @@ class Authentication(APITestCase):
         user = self.logout_user_response
         response = self.token_client.post(self.logout, {"refresh": user.data["tokens"]["refresh"]}, user=user,
                                           token=user.data["tokens"]["access"], format="json")
-        print(response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_user_profile(self):
+        self.test_get_authenticated_user_token_credentials()
+        response = self.client.get(self.profile)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

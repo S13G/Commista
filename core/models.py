@@ -56,6 +56,10 @@ class Profile(BaseModel):
             return self._avatar.url
         return None
 
+    @property
+    def email_address(self):
+        return self.user.email
+
 
 class Otp(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp_codes")

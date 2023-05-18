@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from rest_framework import serializers
 
-from core.models import User
+from core.models import Profile, User
 
 
 class ChangeEmailSerializer(serializers.Serializer):
@@ -64,14 +64,30 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class ProfileSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="user.full_name")
+    email = serializers.EmailField(source="user.email")
+
+    class Meta:
+        model = Profile
+        fields = ["_avatar", "full_name", "gender", "birthday", "email", "phone_number"]
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = ["_avatar", "first_name", "last_name", "gender", "birthday", "phone_number"]
+
+
 class RegisterSerializer(serializers.Serializer):
-    full_name = serializers.CharField(max_length=255)
+    first_name = serializers.CharField(max_length=255)
+    last_name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     password = serializers.CharField(max_length=50, min_length=6, write_only=True)
 
     def validate(self, attrs):
         email = attrs.get('email')
-        full_name = attrs.get('full_name')
+        first_name = attrs.get('first_name')
+        last_name = attrs.get('last_name')
 
         # validate email
         try:
@@ -80,10 +96,10 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid email format")
 
         # validate full_name
-        if not full_name:
-            raise serializers.ValidationError("Full name is required")
-        elif len(full_name.split()) != 2:
-            raise serializers.ValidationError("Full name must be two words")
+        if not first_name:
+            raise serializers.ValidationError("First name is required")
+        if not last_name:
+            raise serializers.ValidationError("Last name is required")
 
         return attrs
 

@@ -9,10 +9,11 @@ from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, Token
 from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView, TokenRefreshView
 
 from core.emails import Util
-from core.models import User
-from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, RegisterSerializer, \
+from core.models import Profile, User
+from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, ProfileSerializer, \
+    RegisterSerializer, \
     RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, ResendEmailVerificationSerializer, \
-    VerifySerializer
+    UpdateProfileSerializer, VerifySerializer
 
 
 # Create your views here.
@@ -153,7 +154,6 @@ class LoginView(TokenObtainPairView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         tokens = super().post(request)
-        print(request.user.is_authenticated)
         return Response({"message": "Logged in successfully", "tokens": tokens.data,
                          "data": {"email": user.email, "full_name": user.full_name}, "status": "success"},
                         status=status.HTTP_200_OK)
@@ -176,6 +176,44 @@ class LogoutView(TokenBlacklistView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response({"message": "Logged out successfully.", "status": "success"}, status=status.HTTP_200_OK)
+
+
+class ListUpdateProfileView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProfileSerializer
+
+    def get(self, request):
+        customer_account = self.request.user
+        try:
+            customer_profile = Profile.objects.get(user=customer_account)
+        except Profile.DoesNotExist:
+            return Response({"message": "Profile for this customer account does not exist", "status": "failed"},
+                            status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(customer_profile)
+        data = serializer.data
+        return Response({"message": "Profile retrieved successfully", "data": data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        customer_account = self.request.user
+        try:
+            customer_profile = Profile.objects.get(user=customer_account)
+        except Profile.DoesNotExist:
+            return Response({"message": "Profile for this customer account does not exist", "status": "failed"},
+                            status=status.HTTP_404_NOT_FOUND)
+        serializer = UpdateProfileSerializer(customer_profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        first_name = serializer.validated_data.get('first_name', '')
+        last_name = serializer.validated_data.get('last_name', '')
+
+        if first_name:
+            customer_account.first_name = first_name
+        if last_name:
+            customer_account.last_name = last_name
+        customer_account.save()
+        return Response({"message": "Profile updated successfully", "status": "succeed"}, status=status.HTTP_200_OK)
 
 
 class RefreshView(TokenRefreshView):
@@ -207,7 +245,7 @@ class RegisterView(GenericAPIView):
             description="This endpoint registers a new user.",
             request=RegisterSerializer,
             responses={
-                200: "Registered successfully. Check email for verification code.",
+                201: "Registered successfully. Check email for verification code.",
                 500: "Internal server error."
             }
 
@@ -216,7 +254,6 @@ class RegisterView(GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-
         data = serializer.data
 
         Util.email_activation(user)
