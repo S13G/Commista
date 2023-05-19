@@ -11,9 +11,8 @@ from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairVi
 from core.emails import Util
 from core.models import Profile, User
 from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, ProfileSerializer, \
-    RegisterSerializer, \
-    RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, ResendEmailVerificationSerializer, \
-    UpdateProfileSerializer, VerifySerializer
+    RegisterSerializer, RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, \
+    ResendEmailVerificationSerializer, UpdateProfileSerializer, VerifySerializer
 
 
 # Create your views here.
@@ -24,16 +23,22 @@ class ChangeEmailView(GenericAPIView):
     serializer_class = ChangeEmailSerializer
 
     @extend_schema(
-            summary="Change Email Endpoint",
-            description="This endpoint allows the authenticated user to change their email address after requesting for a code",
-            request=ChangeEmailSerializer,
-            responses={
-                200: "Email updated successfully. Please check new email for verification",
-                400: "Invalid request or code has expired",
-                401: "Unauthorized. Authentication credentials were not provided.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Change email",
+            description=
+            """
+            This endpoint allows the authenticated user to change their email address after requesting for a code.
+            ,
+            
+            The request should include the following data:
+
+            - `code`: The verification code sent to the user's current email.
+            - `email`: The new email address.
+
+            If the email change is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the email has been updated successfully.
+            - `status`: The status of the request.
+            """
 
     )
     def post(self, request):
@@ -78,17 +83,20 @@ class ChangePasswordView(GenericAPIView):
     serializer_class = ChangePasswordSerializer
 
     @extend_schema(
-            summary="Change Password Endpoint",
-            description="This endpoint allows the authenticated user to change their password after requesting for a code",
-            request=ChangePasswordSerializer,
-            responses={
-                200: "Password updated successfully.",
-                400: "Invalid request or code has expired or not found",
-                401: "Unauthorized. Authentication credentials were not provided.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Change password",
+            description=
+            """
+            This endpoint allows the authenticated user to change their password after requesting for a code.
+            The request should include the following data:
 
+            - `code`: The verification code sent to the user's email.
+            - `password`: The new password.
+
+            If the password change is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the password has been updated successfully.
+            - `status`: The status of the request.
+            """
     )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -125,22 +133,25 @@ class LoginView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
 
     @extend_schema(
-            summary="Login Endpoint",
-            description="This endpoint logs in a user",
-            request=LoginSerializer,
-            responses={
-                200: "Password updated successfully.",
-                400: "Email not verified or Invalid Credentials",
-                401: "Unauthorized. Authentication credentials were not provided.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Login",
+            description=
+            """
+            This endpoint authenticates a registered and verified user and provides the necessary authentication tokens.
+            The request should include the following data:
+
+            - `email`: The user's email address.
+            - `password`: The user's password.
+
+            If the login is successful, the response will include the following data:
+
+            - `access`: The access token used for authorization.
+            - `refresh`: The refresh token used for obtaining a new access token.
+            """
 
     )
-    def post(self, request, **kwargs):
+    def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # use validated_data when you want to so any operation with the data like authenticate
         email = serializer.validated_data["email"]
         password = serializer.validated_data["password"]
         user = authenticate(request, email=email, password=password)
@@ -163,14 +174,19 @@ class LogoutView(TokenBlacklistView):
     serializer_class = TokenBlacklistSerializer
 
     @extend_schema(
-            summary="Logout Endpoint",
-            description="This endpoint logs out an authenticated user.",
-            request=TokenBlacklistSerializer,
-            responses={
-                200: "Logged out successfully.",
-                500: "Internal server error."
-            }
+            summary="Logout",
+            description=
+            """
+            This endpoint logs out an authenticated user by blacklisting their access token.
+            The request should include the following data:
 
+            - `refresh`: The refresh token used for authentication.
+
+            If the logout is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the user has been logged out.
+            - `status`: The status of the request.
+            """
     )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -182,6 +198,18 @@ class ListUpdateProfileView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProfileSerializer
 
+    @extend_schema(
+            summary="Get user profile",
+            description=
+            """
+            This endpoint allows an authenticated user to retrieve their profile information.
+            If the profile exists, the response will include the following data:
+
+            - `message`: A success message indicating that the profile has been retrieved.
+            - `data`: The user's profile information.
+            - `status`: The status of the request.
+            """
+    )
     def get(self, request):
         customer_account = self.request.user
         try:
@@ -194,6 +222,20 @@ class ListUpdateProfileView(GenericAPIView):
         return Response({"message": "Profile retrieved successfully", "data": data, "status": "succeed"},
                         status=status.HTTP_200_OK)
 
+    @extend_schema(
+            summary="Update profile",
+            description=
+            """
+            This endpoint allows an authenticated user to update their profile information.
+            The request should include the updated profile data.
+
+            If the profile is successfully updated, the response will include the following data:
+
+            - `message`: A success message indicating that the profile has been updated.
+            - `data`: The updated user's profile information.
+            - `status`: The status of the request.
+            """
+    )
     def patch(self, request):
         customer_account = self.request.user
         try:
@@ -205,6 +247,7 @@ class ListUpdateProfileView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
+        # Split the full_name and updates the first_name and last_name fields
         full_name = serializer.validated_data.get('full_name', '')
 
         if full_name:
@@ -222,16 +265,23 @@ class RefreshView(TokenRefreshView):
     serializer_class = TokenRefreshSerializer
 
     @extend_schema(
-            summary="Refresh token Endpoint",
-            description="This endpoint refreshes an access token",
-            request=TokenRefreshSerializer,
-            responses={
-                200: "Refreshed successfully.",
-                500: "Internal server error."
-            }
+            summary="Refresh token",
+            description=
+            """
+            This endpoint allows a user to refresh an expired access token.
+            The request should include the following data:
+
+            - `access`: The expired access token.
+
+            If the token refresh is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the token has been refreshed.
+            - `token`: The new access token.
+            - `status`: The status of the request.
+            """
 
     )
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         access_token = serializer.validated_data['access']
@@ -243,13 +293,22 @@ class RegisterView(GenericAPIView):
     serializer_class = RegisterSerializer
 
     @extend_schema(
-            summary="Register Endpoint",
-            description="This endpoint registers a new user.",
-            request=RegisterSerializer,
-            responses={
-                201: "Registered successfully. Check email for verification code.",
-                500: "Internal server error."
-            }
+            summary="Registration",
+            description=
+            """
+            This endpoint allows a new user to register an account.
+            The request should include the following data:
+
+            - `email`: The user's email address.
+            - `first_name`: The user's first name.
+            - `last_name`: The user's last name.
+            - `password`: The user's password.
+
+            If the registration is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the user has been registered.
+            - `status`: The status of the request.
+            """
 
     )
     def post(self, request):
@@ -268,15 +327,19 @@ class RequestEmailChangeCodeView(GenericAPIView):
     serializer_class = RequestEmailChangeCodeSerializer
 
     @extend_schema(
-            summary="Request Email Change code Endpoint",
-            description="This endpoint allows the authenticated user to request for a code to change their email",
-            request=RequestEmailChangeCodeSerializer,
-            responses={
-                200: "Code for email change sent successfully.",
-                401: "Unauthorized. Authentication credentials were not provided.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Request email change code",
+            description=
+            """
+            This endpoint allows an authenticated user to request a verification code to change their email address.
+            The request should include the following data:
+
+            - `email`: The user's current email address.
+
+            If the request is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the verification code has been sent.
+            - `status`: The status of the request.
+            """
 
     )
     def post(self, request):
@@ -292,18 +355,23 @@ class RequestEmailChangeCodeView(GenericAPIView):
                         status=status.HTTP_200_OK)
 
 
-class ResendEmailVerificationView(GenericAPIView):
+class ResendEmailVerificationCodeView(GenericAPIView):
     serializer_class = ResendEmailVerificationSerializer
 
     @extend_schema(
-            summary="Resend Email Verification Code Endpoint",
-            description="This endpoint sends a new user a new code to verify if previous code faced issues",
-            request=ResendEmailVerificationSerializer,
-            responses={
-                200: "Verification code sent successfully or Account already Verified.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Resend email verification code",
+            description=
+            """
+            This endpoint allows a user to request a new verification email for account activation.
+            The request should include the following data:
+
+            - `email`: The user's email address.
+
+            If the request is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the verification email has been sent.
+            - `status`: The status of the request.
+            """
 
     )
     def post(self, request):
@@ -328,16 +396,19 @@ class RequestNewPasswordCodeView(GenericAPIView):
     serializer_class = RequestNewPasswordCodeSerializer
 
     @extend_schema(
-            summary="Request New Password Endpoint",
-            description="This endpoint allows the authenticated user to request for a code to change password",
-            request=RequestNewPasswordCodeSerializer,
-            responses={
-                200: "Password code sent successfully.",
-                400: "Verify your account",
-                401: "Unauthorized. Authentication credentials were not provided.",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Request new password code",
+            description=
+            """
+            This endpoint allows a user to request a verification code to reset their password.
+            The request should include the following data:
+
+            - `email`: The user's email address.
+
+            If the request is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the verification code has been sent.
+            - `status`: The status of the request.
+            """
 
     )
     def post(self, request):
@@ -359,15 +430,19 @@ class VerifyEmailView(GenericAPIView):
     serializer_class = VerifySerializer
 
     @extend_schema(
-            summary="Verify Email Endpoint",
-            description="This endpoint allows users to authenticate their email with the code received",
-            request=VerifySerializer,
-            responses={
-                200: "Account verified successfully.",
-                400: "Invalid request or code has expired or not found",
-                404: "Account not found.",
-                500: "Internal server error."
-            }
+            summary="Verify email",
+            description=
+            """
+            This endpoint allows a user to verify their account using a verification code.
+            The request should include the following data:
+
+            - `code`: The verification code sent to the user's email.
+
+            If the verification is successful, the response will include the following data:
+
+            - `message`: A success message indicating that the account has been verified.
+            - `status`: The status of the request.
+            """
 
     )
     def post(self, request):

@@ -1,13 +1,13 @@
 from django.urls import path
 
 from core import views
-from core.utils import GoogleSocialAuthView
+from core.oauth_views import GoogleSocialAuthView
 
 urlpatterns = [
     path('email/change/', views.ChangeEmailView.as_view(), name="change_email"),
     path('email/change/code/request/', views.RequestEmailChangeCodeView.as_view(), name="request_email_change_code"),
     path('email/verify/', views.VerifyEmailView.as_view(), name="verify_email"),
-    path('email/verification/code/resend/', views.ResendEmailVerificationView.as_view(),
+    path('email/verification/code/resend/', views.ResendEmailVerificationCodeView.as_view(),
          name="resend_verification_code"),
     path('google-auth/', GoogleSocialAuthView.as_view(), name="google_auth"),
     path('login/', views.LoginView.as_view(), name="login"),

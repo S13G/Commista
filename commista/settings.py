@@ -137,6 +137,14 @@ WSGI_APPLICATION = "commista.wsgi.application"
 
 DATABASES = {
     "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "commista",
+        "USER": "s13g",
+        "PASSWORD": "S13G2£",
+        "HOST": "localhost",
+        "PORT": 3306
+    },
+    "default1": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "commista.sqlite3"
     }
@@ -204,7 +212,7 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 EMAIL_USE_SSL = True
 
-EMAIL_HOST = config("EMAIL_HOST")
+EMAIL_HOST = "smtp.gmail.com"
 
 EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 
@@ -220,6 +228,9 @@ JAZZMIN_UI_TWEAKS = {
     "body_small_text": False,
     # "theme": "darkly",
 }
+
+# Shipping months for the Order
+ORDER_SHIPPING_MONTHS = config("ORDER_SHIPPING_MONTHS")
 
 # Flutterwave variables
 FW_KEY = config("FLUTTERWAVE_SECRET_KEY")

@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, PAYMENT_FAILED, \
     SHIPPING_STATUS_PROCESSING
 from store.filters import ProductFilter
-from store.models import Address, Cart, Category, ColourInventory, Country, FavoriteProduct, Notification, Order, \
+from store.models import Address, Cart, Category, ColourInventory, FavoriteProduct, Notification, Order, \
     Product, ProductReview, ProductReviewImage, SizeInventory
 from store.serializers import AddCartItemSerializer, AddProductReviewSerializer, AddressSerializer, CartItemSerializer, \
     CreateAddressSerializer, CreateOrderSerializer, DeleteCartItemSerializer, FavoriteProductSerializer, \
@@ -42,16 +42,6 @@ class CategorySalesView(GenericAPIView):
         data = {'categories': categories, 'product_without_flash_sales': products_without_flash_sales_data,
                 'flash_sales': flash_sales_data, 'mega_sales': mega_sales_data}
         return Response({"message": "Fetched all products", "data": data, "status": "success"},
-                        status=status.HTTP_200_OK)
-
-
-class CountryView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-
-    @staticmethod
-    def get(request):
-        countries_data = Country.objects.values('id', 'name', 'code')
-        return Response({"message": "Countries retrieved successfully", "data": countries_data, "status": "succeed"},
                         status=status.HTTP_200_OK)
 
 

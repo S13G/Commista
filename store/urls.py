@@ -10,7 +10,6 @@ urlpatterns = [
     path("categories/all/", views.ListCategoryView.as_view(), name="category_list"),
     path("categories/all-with-sales/", views.CategorySalesView.as_view(), name="category_product_sales"),
     path("favorites/", views.FavoriteProductsView.as_view(), name="favorite_products"),
-    path("countries/", views.CountryView.as_view(), name="countries"),
     path("notifications/all/", views.ListNotificationView.as_view(), name="notifications"),
     path('orders/', views.ListCreateOrderView.as_view(), name='list_create_order'),
     path('orders/<str:transaction_ref>/delete/', views.DeleteOrderView.as_view(), name='delete_order'),

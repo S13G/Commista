@@ -2,13 +2,15 @@ import secrets
 
 from autoslug import AutoSlugField
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
-from django_countries.fields import CountryField
 from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
+from django_countries.fields import CountryField
 from rest_framework.exceptions import ValidationError
 
 from common.models import BaseModel
@@ -22,32 +24,38 @@ from store.validators import validate_image_size
 Customer = get_user_model()
 
 
-def upload_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/store/instance_id/<filename>
-    return f"store/{instance.id}/{filename}"
-
-
 class Category(BaseModel):
-    title = models.CharField(max_length=255, unique=True)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True)
+    title = models.CharField(
+            max_length=255, unique=True, help_text=_("Enter the category title.")
+    )
+    gender = models.CharField(
+            max_length=1, choices=GENDER_CHOICES, null=True,
+            help_text=_("Select the gender for this category.")
+    )
 
     class Meta:
-        verbose_name_plural = "Categories"
+        verbose_name_plural = _("Categories")
 
     def __str__(self):
         return self.title
 
 
 class Size(BaseModel):
-    title = models.CharField(max_length=5, unique=True)
+    title = models.CharField(
+            max_length=5, unique=True, help_text=_("Enter the size title.")
+    )
 
     def __str__(self):
         return self.title
 
 
 class Colour(BaseModel):
-    name = models.CharField(max_length=20, unique=True)
-    hex_code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(
+            max_length=20, unique=True, help_text=_("Enter the colour name.")
+    )
+    hex_code = models.CharField(
+            max_length=20, unique=True, help_text=_("Enter the hexadecimal code for the colour.")
+    )
 
     def __str__(self):
         return f"{self.name} ---- {self.hex_code}"
@@ -55,30 +63,65 @@ class Colour(BaseModel):
 
 class ProductsManager(models.Manager):
     def get_queryset(self):
-        return super(ProductsManager, self).get_queryset().prefetch_related('category', 'product_reviews',
-                                                                            'size_inventory', 'color_inventory',
-                                                                            'images').filter(inventory__gt=0)
+        return super(ProductsManager, self) \
+            .get_queryset() \
+            .prefetch_related(
+                'category',
+                'product_reviews',
+                'size_inventory',
+                'color_inventory',
+                'images'
+        ) \
+            .filter(inventory__gt=0)
 
 
 class Product(BaseModel):
-    title = models.CharField(max_length=255, unique=True)
+    title = models.CharField(
+            max_length=255, unique=True, help_text=_("Enter the product title.")
+    )
     slug = AutoSlugField(
-            populate_from="title", unique=True, always_update=True, editable=False
+            populate_from="title", unique=True, always_update=True, editable=False,
+            help_text=_("Auto-generated slug based on the product title.")
     )
     category = models.ForeignKey(
-            Category, on_delete=models.CASCADE, related_name="products"
+            Category, on_delete=models.CASCADE, related_name="products",
+            help_text=_("Select the category for this product.")
     )
-    description = models.TextField()
-    style = models.CharField(max_length=255)
-    price = models.DecimalField(max_digits=6, decimal_places=2)
-    shipped_out_days = models.IntegerField()
-    shipping_fee = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
-    inventory = models.IntegerField(validators=[MinValueValidator(0)])
-    percentage_off = models.PositiveIntegerField(default=0)
-    condition = models.CharField(max_length=2, choices=CONDITION_CHOICES, blank=True, null=True)
-    location = CountryField()
-    flash_sale_start_date = models.DateTimeField(null=True, blank=True)
-    flash_sale_end_date = models.DateTimeField(null=True, blank=True)
+    description = models.TextField(
+            help_text=_("Enter the product description.")
+    )
+    style = models.CharField(
+            max_length=255, help_text=_("Enter the product style.")
+    )
+    price = models.DecimalField(
+            max_digits=6, decimal_places=2, help_text=_("Enter the product price.")
+    )
+    shipped_out_days = models.IntegerField(
+            help_text=_("Enter the number of days it takes to ship the product.")
+    )
+    shipping_fee = models.DecimalField(
+            max_digits=6, decimal_places=2, validators=[MinValueValidator(0)],
+            help_text=_("Enter the shipping fee for the product.")
+    )
+    inventory = models.IntegerField(
+            validators=[MinValueValidator(0)], help_text=_("Enter the product inventory.")
+    )
+    percentage_off = models.PositiveIntegerField(
+            default=0, help_text=_("Enter the percentage off for the product.")
+    )
+    condition = models.CharField(
+            max_length=2, choices=CONDITION_CHOICES, blank=True, null=True,
+            help_text=_("Select the condition of the product.")
+    )
+    location = CountryField(
+            help_text=_("Select the location of the product.")
+    )
+    flash_sale_start_date = models.DateTimeField(
+            null=True, blank=True, help_text=_("Enter the start date of the flash sale.")
+    )
+    flash_sale_end_date = models.DateTimeField(
+            null=True, blank=True, help_text=_("Enter the end date of the flash sale.")
+    )
     objects = models.Manager()
     categorized = ProductsManager()
 
@@ -87,12 +130,16 @@ class Product(BaseModel):
 
     @cached_property
     def average_ratings(self):
+        # Calculate the average ratings for the product
         result = self.product_reviews.aggregate(Avg("ratings"))
+        # Return the average ratings or 0 if no ratings are available
         return result["ratings__avg"] or 0
 
     @property
     def discount_price(self):
+        # Check if a percentage discount is applicable
         if self.percentage_off > 0:
+            # Calculate the discounted price based on the percentage off
             discount = self.price - (self.price * self.percentage_off / 100)
             return round(discount, 2)
         return 0
@@ -100,14 +147,19 @@ class Product(BaseModel):
 
 class ColourInventory(models.Model):
     product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="color_inventory"
+            Product, on_delete=models.CASCADE, related_name="color_inventory",
+            help_text=_("The product associated with this color inventory.")
     )
     colour = models.ForeignKey(
-            Colour, on_delete=models.CASCADE, related_name="product_color"
+            Colour, on_delete=models.CASCADE, related_name="product_color",
+            help_text=_("The color associated with this product.")
     )
-    quantity = models.IntegerField(default=0, blank=True)
+    quantity = models.IntegerField(
+            default=0, blank=True, help_text=_("The quantity of this color variant in inventory.")
+    )
     extra_price = models.DecimalField(
-            max_digits=6, decimal_places=2, blank=True, null=True, default=0
+            max_digits=6, decimal_places=2, blank=True, null=True, default=0,
+            help_text=_("The extra price for this color variant.")
     )
 
     class Meta:
@@ -119,18 +171,23 @@ class ColourInventory(models.Model):
 
 class SizeInventory(models.Model):
     product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="size_inventory"
+            Product, on_delete=models.CASCADE, related_name="size_inventory",
+            help_text=_("The product associated with this size inventory.")
     )
     size = models.ForeignKey(
-            Size, on_delete=models.CASCADE, related_name="product_size"
+            Size, on_delete=models.CASCADE, related_name="product_size",
+            help_text=_("The size associated with this product.")
     )
-    quantity = models.IntegerField(default=0, blank=True)
+    quantity = models.IntegerField(
+            default=0, blank=True, help_text=_("The quantity of this size variant in inventory.")
+    )
     extra_price = models.DecimalField(
-            max_digits=6, decimal_places=2, blank=True, null=True, default=0
+            max_digits=6, decimal_places=2, blank=True, null=True, default=0,
+            help_text=_("The extra price for this size variant.")
     )
 
     class Meta:
-        verbose_name_plural = "Product Size & Inventories"
+        verbose_name_plural = _("Product Size & Inventories")
 
     def __str__(self):
         return self.product.title
@@ -138,10 +195,12 @@ class SizeInventory(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="images"
+            Product, on_delete=models.CASCADE, related_name="images",
+            help_text=_("The product associated with this image.")
     )
     _image = models.ImageField(
-            upload_to='store/images', validators=[validate_image_size]
+            upload_to='store/product_images', validators=[validate_image_size],
+            help_text=_("The image of the product.")
     )
 
     def __str__(self):
@@ -156,10 +215,12 @@ class ProductImage(models.Model):
 
 class FavoriteProduct(BaseModel):
     customer = models.ForeignKey(
-            Customer, on_delete=models.CASCADE, related_name="favorite_products"
+            Customer, on_delete=models.CASCADE, related_name="favorite_products",
+            help_text=_("The customer who has marked this product as a favorite.")
     )
     product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="customer_favorites"
+            Product, on_delete=models.CASCADE, related_name="customer_favorites",
+            help_text=_("The product marked as a favorite by the customer.")
     )
 
     class Meta:
@@ -175,7 +236,8 @@ class FavoriteProduct(BaseModel):
 
 class SliderImage(BaseModel):
     _image = models.ImageField(
-            upload_to=upload_path, validators=[validate_image_size]
+            upload_to='store/slider_images/', validators=[validate_image_size],
+            help_text=_("Image for the slider")
     )
 
     @property
@@ -187,13 +249,19 @@ class SliderImage(BaseModel):
 
 class ProductReview(BaseModel):
     customer = models.ForeignKey(
-            Customer, on_delete=models.DO_NOTHING, related_name="product_reviews"
+            Customer, on_delete=models.DO_NOTHING, related_name="product_reviews",
+            help_text=_("The customer who wrote the review.")
     )
     product = models.ForeignKey(
-            Product, on_delete=models.CASCADE, related_name="product_reviews"
+            Product, on_delete=models.CASCADE, related_name="product_reviews",
+            help_text=_("The product being reviewed.")
     )
-    ratings = models.IntegerField(choices=RATING_CHOICES, null=True)
-    description = models.TextField()
+    ratings = models.IntegerField(
+            choices=RATING_CHOICES, null=True, help_text=_("The ratings given to the product.")
+    )
+    description = models.TextField(
+            help_text=_("The description of the product review.")
+    )
 
     def __str__(self):
         return f"{self.customer.full_name} --- {self.product.title} --- {self.ratings} stars"
@@ -201,10 +269,12 @@ class ProductReview(BaseModel):
 
 class ProductReviewImage(models.Model):
     product_review = models.ForeignKey(
-            ProductReview, on_delete=models.CASCADE, related_name="product_review_images"
+            ProductReview, on_delete=models.CASCADE, related_name="product_review_images",
+            help_text=_("The product review associated with the image.")
     )
     _image = models.ImageField(
-            upload_to=upload_path, validators=[validate_image_size]
+            upload_to='store/review_images', validators=[validate_image_size],
+            help_text=_("Image for the product review.")
     )
 
     @property
@@ -215,21 +285,39 @@ class ProductReviewImage(models.Model):
 
 
 class Notification(BaseModel):
-    customers = models.ManyToManyField(Customer)
-    notification_type = models.CharField(max_length=1, choices=NOTIFICATION_CHOICES)
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    general = models.BooleanField(default=False)
+    customers = models.ManyToManyField(
+            Customer, help_text=_("The customers associated with the notification.")
+    )
+    notification_type = models.CharField(
+            max_length=1, choices=NOTIFICATION_CHOICES, help_text=_("The type of notification.")
+    )
+    title = models.CharField(
+            max_length=255, help_text=_("The title of the notification.")
+    )
+    description = models.TextField(
+            help_text=_("The description of the notification.")
+    )
+    general = models.BooleanField(
+            default=False, help_text=_("Whether the notification is general or specific to individual customers.")
+    )
 
     def __str__(self):
         return f"{self.notification_type} ---- {self.title}"
 
 
 class CouponCode(BaseModel):
-    code = models.CharField(max_length=8, unique=True, editable=False)
-    price = models.DecimalField(max_digits=6, decimal_places=2)
-    expired = models.BooleanField(default=False)
-    expiry_date = models.DateTimeField()  #
+    code = models.CharField(
+            max_length=8, unique=True, editable=False, help_text=_("The code for the coupon.")
+    )
+    price = models.DecimalField(
+            max_digits=6, decimal_places=2, help_text=_("The price of the coupon.")
+    )
+    expired = models.BooleanField(
+            default=False, help_text=_("Indicates whether the coupon is expired or not.")
+    )
+    expiry_date = models.DateTimeField(
+            help_text=_("The date and time when the coupon expires.")
+    )
 
     def __str__(self):
         return self.code
@@ -238,7 +326,7 @@ class CouponCode(BaseModel):
         if not self.code:
             self.code = secrets.token_hex(4).upper()  # creates 8 letters
 
-        if self.expiry_date and timezone.now() > self.expiry_date:
+        if self.expiry_date and (timezone.now() > self.expiry_date):
             self.expired = True
 
         # ensure expiry date is always in the future
@@ -248,32 +336,69 @@ class CouponCode(BaseModel):
 
 
 class Order(BaseModel):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
-    transaction_ref = models.CharField(max_length=32, unique=True)
-    placed_at = models.DateTimeField(auto_now_add=True)
-    total_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
-    address = models.ForeignKey('Address', on_delete=models.SET_NULL, blank=True, null=True,
-                                related_name="orders_address")
-    payment_status = models.CharField(max_length=2, choices=PAYMENT_STATUS, default=PAYMENT_PENDING)
-    shipping_status = models.CharField(max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING)
+    customer = models.ForeignKey(
+            Customer, on_delete=models.CASCADE, null=True, related_name="orders",
+            help_text=_("The customer who placed the order.")
+    )
+    transaction_ref = models.CharField(
+            max_length=32, unique=True, help_text=_("The reference number for the transaction.")  #
+    )
+    placed_at = models.DateTimeField(
+            auto_now_add=True, help_text=_("The date and time when the order was placed.")
+    )
+    total_price = models.DecimalField(
+            max_digits=6, decimal_places=2, null=True, help_text=_("The total price of the order.")
+    )
+    address = models.ForeignKey(
+            'Address', on_delete=models.SET_NULL, blank=True, null=True,
+            related_name="orders_address", help_text=_("The address associated with the order.")
+    )
+    payment_status = models.CharField(
+            max_length=2, choices=PAYMENT_STATUS, default=PAYMENT_PENDING,
+            help_text=_("The payment status of the order.")
+    )
+    shipping_status = models.CharField(
+            max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING,
+            help_text=_("The shipping status of the order.")
+    )
 
     @property
     def estimated_shipping_date(self):
-        return self.placed_at + relativedelta(months=1)
+        # adding on month to the date the order was placed
+        return self.placed_at + relativedelta(months=settings.ORDER_SHIPPING_MONTHS)
 
     def __str__(self):
         return f"{self.transaction_ref} --- {self.placed_at}"
 
 
 class OrderItem(BaseModel):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="order_items", null=True)
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="orderitems")
-    quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
-    unit_price = models.DecimalField(max_digits=6, decimal_places=2)
-    size = models.CharField(max_length=20, null=True)
-    colour = models.CharField(max_length=20, null=True)
-    ordered = models.BooleanField(default=False)
+    customer = models.ForeignKey(
+            Customer, on_delete=models.CASCADE, related_name="order_items", null=True,
+            help_text=_("The customer associated with the order item.")
+    )
+    order = models.ForeignKey(
+            Order, on_delete=models.CASCADE, related_name="items",
+            help_text=_("The order associated with the order item.")
+    )
+    product = models.ForeignKey(
+            Product, on_delete=models.CASCADE, related_name="orderitems",
+            help_text=_("The product associated with the order item.")
+    )
+    quantity = models.PositiveSmallIntegerField(
+            validators=[MinValueValidator(1)], help_text=_("The quantity of the product in the order item.")
+    )
+    unit_price = models.DecimalField(
+            max_digits=6, decimal_places=2, help_text=_("The unit price of the product in the order item.")
+    )
+    size = models.CharField(
+            max_length=20, null=True, help_text=_("The size of the product in the order item.")
+    )
+    colour = models.CharField(
+            max_length=20, null=True, help_text=_("The color of the product in the order item.")
+    )
+    ordered = models.BooleanField(
+            default=False, help_text=_("Whether the order item has been ordered or not.")
+    )
 
     def __str__(self):
         return (
@@ -282,60 +407,67 @@ class OrderItem(BaseModel):
 
 
 class Cart(BaseModel):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="carts")
-
-    @property
-    def total_price(self):
-        cart_total = sum([item.total_price for item in self.items.all()])
-        return cart_total
+    customer = models.ForeignKey(
+            Customer, on_delete=models.CASCADE, null=True, related_name="carts",
+            help_text=_("The customer associated with the cart.")
+    )
 
 
 class CartItem(BaseModel):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    size = models.CharField(max_length=20, null=True)
-    colour = models.CharField(max_length=20, null=True)
-    quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
-    extra_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
-
-    @property
-    def total_price(self):
-        extra_price = self.extra_price
-        if float(self.product.discount_price) > 0:
-            return self.quantity * (self.product.discount_price + self.product.shipping_fee + extra_price)
-        return self.quantity * (self.product.price + self.product.shipping_fee + extra_price)
-
-    def __str__(self):
-        return f"Cart id({self.cart.id}) ---- {self.product.title} ---- {self.quantity}"
-
-
-class Country(BaseModel):
-    name = models.CharField(max_length=255)
-    code = models.CharField(max_length=10)
-
-    class Meta:
-        verbose_name_plural = "Countries"
-
-    def __str__(self):
-        return f"{self.name} -- {self.code}"
+    cart = models.ForeignKey(
+            Cart, on_delete=models.CASCADE, related_name="items",
+            help_text=_("The cart associated with the cart item.")
+    )
+    product = models.ForeignKey(
+            Product, on_delete=models.CASCADE, help_text=_("The product associated with the cart item.")
+    )
+    size = models.CharField(
+            max_length=20, null=True, help_text=_("The size of the product in the cart item.")
+    )
+    colour = models.CharField(
+            max_length=20, null=True, help_text=_("The color of the product in the cart item.")
+    )
+    quantity = models.PositiveSmallIntegerField(
+            validators=[MinValueValidator(1)], help_text=_("The quantity of the product in the cart item.")
+    )
+    extra_price = models.DecimalField(
+            max_digits=6, decimal_places=2, null=True,
+            help_text=_("Any additional price associated with the cart item.")
+    )
 
 
 class Address(BaseModel):
     customer = models.ForeignKey(
-            Customer, on_delete=models.CASCADE, related_name="addresses"
+            Customer, on_delete=models.CASCADE, related_name="addresses",
+            help_text=_("The customer associated with the address."))
+    country = CountryField(
+            help_text=_("The country of the address.")
     )
-    country = models.ForeignKey(Country, on_delete=models.CASCADE)
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
-    street_address = models.CharField(max_length=255)
-    second_street_address = models.CharField(max_length=255, blank=True, null=True)
-    city = models.CharField(max_length=255)
-    state = models.CharField(max_length=255)
-    zip_code = models.CharField(max_length=10)
-    phone_number = models.CharField(max_length=20, validators=[validate_phone_number])
+    first_name = models.CharField(
+            max_length=255, help_text=_("The first name associated with the address.")
+    )
+    last_name = models.CharField(
+            max_length=255, help_text=_("The last name associated with the address.")
+    )
+    street_address = models.CharField(
+            max_length=255, help_text=_("The street address of the address.")
+    )
+    second_street_address = models.CharField(
+            max_length=255, blank=True, null=True, help_text=_("The second street address of the address.")
+    )
+    city = models.CharField(
+            max_length=255, help_text=_("The city of the address.")
+    )
+    state = models.CharField(
+            max_length=255, help_text=_("The state of the address.")
+    )
+    zip_code = models.CharField(
+            max_length=10, help_text=_("The ZIP code of the address.")
+    )
+    phone_number = models.CharField(
+            max_length=20, validators=[validate_phone_number],
+            help_text=_("The phone number associated with the address.")
+    )
 
     class Meta:
-        verbose_name_plural = "Addresses"
-
-    def __str__(self):
-        return f"{self.customer.full_name}"
+        verbose_name_plural = _("Addresses")

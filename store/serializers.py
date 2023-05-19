@@ -2,12 +2,11 @@ import uuid
 from datetime import timedelta
 
 from django.db import transaction
-from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Address, Cart, CartItem, Colour, ColourInventory, Country, CouponCode, FavoriteProduct, Order, \
+from store.models import Address, Cart, CartItem, Colour, ColourInventory, CouponCode, FavoriteProduct, Order, \
     OrderItem, Product, ProductImage, ProductReview, Size, SizeInventory
 
 
@@ -481,7 +480,6 @@ class AddressSerializer(serializers.ModelSerializer):
 
 
 class CreateAddressSerializer(serializers.ModelSerializer):
-    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all())
     second_street_address = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
@@ -490,15 +488,7 @@ class CreateAddressSerializer(serializers.ModelSerializer):
                   'zip_code', 'phone_number']
 
     def create(self, validated_data):
-        customer = self.context['request'].user
-        country_data = self.validated_data['country']
-        try:
-            country = get_object_or_404(Country, id=country_data.id)
-        except Http404:
-            raise ValidationError(
-                    {"message": "No country with the given ID was found.", "status": "failed"}
-            )
-        address = Address.objects.create(country_id=country.id, customer=customer, **validated_data)
+        address = Address.objects.create(**validated_data)
         return address
 
 

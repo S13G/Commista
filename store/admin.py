@@ -194,14 +194,6 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ("customer__full_name", "transaction_ref", "payment_status", "shipping_status")
 
 
-@admin.register(Country)
-class CountryAdmin(admin.ModelAdmin):
-    list_display = ("name", "code",)
-    list_per_page = 20
-    ordering = ("name",)
-    search_fields = ("name__istartswith", "code",)
-
-
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
     list_display = ("customer", "first_name", "last_name", "country", "city", "zip_code")

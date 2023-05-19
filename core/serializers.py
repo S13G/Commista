@@ -16,14 +16,12 @@ class ChangeEmailSerializer(serializers.Serializer):
         code = attrs.get('code')
         email = attrs.get('email')
 
-        # validate code
         if not code:
             raise serializers.ValidationError({"message": "Code is required", "status": "failed"})
 
         if not re.match("^[0-9]{4}$", str(code)):
             raise serializers.ValidationError({"message": "Code must be 4-digit number", "status": "failed"})
 
-        # validate email
         try:
             validate_email(email)
         except ValidationError:
@@ -39,7 +37,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         code = attrs.get('code')
 
-        # validate code
         if not code:
             raise serializers.ValidationError({"message": "Code is required", "status": "failed"})
 
@@ -56,7 +53,6 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email')
 
-        # validate email
         try:
             validate_email(email)
         except ValidationError:
@@ -66,18 +62,18 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(source="user.full_name")
     email = serializers.EmailField(source="user.email")
+    full_name = serializers.CharField(source="user.full_name")
 
     class Meta:
         model = Profile
-        fields = ["_avatar", "full_name", "gender", "birthday", "email", "phone_number"]
+        fields = ["_avatar", "email", "full_name", "gender", "birthday", "phone_number"]
 
 
 class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
     first_name = serializers.CharField(max_length=255)
     last_name = serializers.CharField(max_length=255)
-    email = serializers.EmailField()
     password = serializers.CharField(max_length=50, min_length=6, write_only=True)
 
     def validate(self, attrs):
@@ -85,13 +81,11 @@ class RegisterSerializer(serializers.Serializer):
         first_name = attrs.get('first_name')
         last_name = attrs.get('last_name')
 
-        # validate email
         try:
             validate_email(email)
         except ValidationError:
             raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
 
-        # validate full_name
         if not first_name:
             raise serializers.ValidationError({"message": "First name is required", "status": "failed"})
         if not last_name:
@@ -109,21 +103,6 @@ class RequestEmailChangeCodeSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email')
 
-        # validate email
-        try:
-            validate_email(email)
-        except ValidationError:
-            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
-        return attrs
-
-
-class RequestNewPasswordCodeSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-
-    def validate(self, attrs):
-        email = attrs.get('email')
-
-        # validate email
         try:
             validate_email(email)
         except ValidationError:
@@ -137,7 +116,19 @@ class ResendEmailVerificationSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email')
 
-        # validate email
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
+        return attrs
+
+
+class RequestNewPasswordCodeSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+
         try:
             validate_email(email)
         except ValidationError:
@@ -146,15 +137,15 @@ class ResendEmailVerificationSerializer(serializers.Serializer):
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(max_length=255)
     _avatar = serializers.ImageField(validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])])
-    gender = serializers.CharField(max_length=1, validators=[RegexValidator(r'^[MFO]$')])
     birthday = serializers.DateField()
+    full_name = serializers.CharField(max_length=255)
+    gender = serializers.CharField(max_length=1, validators=[RegexValidator(r'^[MFO]$')])
     phone_number = serializers.CharField(max_length=20)
 
     class Meta:
         model = Profile
-        fields = ['_avatar', 'full_name', 'gender', 'birthday', 'phone_number']
+        fields = ['_avatar', 'birthday', 'full_name', 'gender', 'phone_number']
 
     @staticmethod
     def validate_phone_number(value):
@@ -166,24 +157,22 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
 
 
 class VerifySerializer(serializers.Serializer):
-    email = serializers.EmailField()
     code = serializers.IntegerField()
+    email = serializers.EmailField()
 
     def validate(self, attrs):
-        email = attrs.get('email')
         code = attrs.get('code')
+        email = attrs.get('email')
 
-        # validate email
-        try:
-            validate_email(email)
-        except ValidationError:
-            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
-
-        # validate code
         if not code:
             raise serializers.ValidationError({"message": "Code is required", "status": "failed"})
 
         if not re.match("^[0-9]{4}$", str(code)):
             raise serializers.ValidationError({"message": "Code must be a 4-digit number", "status": "failed"})
+
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise serializers.ValidationError({"message": "Invalid email format", "status": "failed"})
 
         return attrs
