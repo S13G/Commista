@@ -1,3 +1,4 @@
+from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -19,23 +20,37 @@ def upload_path(instance, filename):
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False, unique=True)
     username = None
-    email = models.EmailField(unique=True, help_text=_("The email address of the user."))
-    email_changed = models.BooleanField(default=False,
-                                        help_text=_("Indicates whether the user has changed their email."))
-    is_verified = models.BooleanField(default=False, help_text=_("Indicates whether the user's email is verified."))
+    email = models.EmailField(unique=True)
+    email_changed = models.BooleanField(
+            default=False, help_text=_("Indicates whether the user has changed their email.")
+    )
+    is_verified = models.BooleanField(
+            default=False, help_text=_("Indicates whether the user's email is verified.")
+    )
+    is_modified = models.DateTimeField(
+            default=None, editable=False, help_text=_("Indicates the date the user email was changed.")
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
     objects = CustomUserManager()
 
+    class Meta:
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+
     @property
     def full_name(self):
         return self.get_full_name()
 
-    class Meta:
-        verbose_name = "User"
-        verbose_name_plural = "Users"
+    def save(self, *args, **kwargs):
+        if self.email_changed and not self.is_modified:
+            self.is_modified = timezone.now()
+        elif self.email_changed and self.is_modified + timedelta(days=10) <= timezone.now():
+            self.email_changed = False
+
+        super().save(*args, **kwargs)
 
 
 class Profile(BaseModel):
@@ -87,4 +102,4 @@ class Otp(BaseModel):
             self.delete()
 
         # Save the OTP model
-        super(Otp, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)

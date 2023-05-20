@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.contrib.auth import authenticate
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
@@ -350,6 +353,10 @@ class RequestEmailChangeCodeView(GenericAPIView):
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        if user.email_changed is True:
+            days_left = (user.is_modified + timedelta(days=10) - timezone.now()).days
+            message = f"You can change your email again after {days_left} day(s) because your email has been recently changed."
+            return Response({"message": message, "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         Util.email_change(user)
         return Response({"message": "Code for email change sent successfully", "status": "success"},
                         status=status.HTTP_200_OK)
