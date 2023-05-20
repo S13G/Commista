@@ -23,189 +23,67 @@ from store.serializers import AddCartItemSerializer, AddProductReviewSerializer,
 
 
 # Create your views here.
-
-class CategorySalesView(GenericAPIView):
+class AddressListCreateView(GenericAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = ProductSerializer
+    serializer_class = CreateAddressSerializer
 
     def get(self, request):
-        categories = Category.objects.values('id', 'title')
-        products_without_flash_sales = Product.categorized.filter(flash_sale_start_date=None, flash_sale_end_date=None)
-        flash_sales = Product.categorized.filter(flash_sale_start_date__lte=timezone.now(),
-                                                 flash_sale_end_date__gte=timezone.now())
-        serializer = self.serializer_class(many=True)
-        mega_sales = products_without_flash_sales.filter(percentage_off__gte=24)
-        products_without_flash_sales_data = serializer.to_representation(products_without_flash_sales)
-        flash_sales_data = serializer.to_representation(flash_sales)
-        mega_sales_data = serializer.to_representation(mega_sales)
-
-        data = {'categories': categories, 'product_without_flash_sales': products_without_flash_sales_data,
-                'flash_sales': flash_sales_data, 'mega_sales': mega_sales_data}
-        return Response({"message": "Fetched all products", "data": data, "status": "success"},
+        address_id = self.request.query_params.get('address_id')
+        if address_id:
+            try:
+                address = Address.objects.get(id=address_id, customer=self.request.user)
+                serializer = AddressSerializer(address)
+                return Response(
+                        {"message": "Address retrieved successfully", "data": serializer.data, "status": "succeed"},
                         status=status.HTTP_200_OK)
-
-
-class FavoriteProductsView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = FavoriteProductSerializer
-
-    def get(self, request):
-        customer = self.request.user
-        if customer is None:
-            return Response({"message": "User does not exist", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
-        favorite_products = FavoriteProduct.objects.filter(customer=customer).select_related(
-                'product').prefetch_related(
-                'product__color_inventory__colour', 'product__size_inventory__size', 'product__images')
-        serializer = self.serializer_class(favorite_products, many=True)
-        return Response({"message": "All favorite products fetched", "data": serializer.data, "status": "success"},
-                        status=status.HTTP_200_OK)
-
-    def post(self, request):
-        customer = self.request.user
-        product_id = self.request.data.get("product_id")
-        if not product_id:
-            return Response({"message": "Product id is required", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            product = Product.objects.get(id=product_id)
-        except Product.DoesNotExist:
-            return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-
-        favorite, created = FavoriteProduct.objects.get_or_create(customer=customer, product=product)
-        if created:
-            return Response({"message": "Product added to favorites", "status": "success"},
-                            status=status.HTTP_201_CREATED)
+            except Address.DoesNotExist:
+                return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         else:
-            return Response({"message": "Product already in favorites", "status": "success"}, status=status.HTTP_200_OK)
-
-    def delete(self, request):
-        customer = self.request.user
-        product_id = self.request.data.get("product_id")
-        if not product_id:
-            return Response({"message": "Product id is required", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            product = Product.objects.get(id=product_id)
-        except Product.DoesNotExist:
-            return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-
-        FavoriteProduct.objects.filter(customer=customer, product=product).delete()
-        return Response({"message": "Product removed from favorite list", "status": "succeed"},
-                        status=status.HTTP_200_OK)
-
-
-class ProductDetailView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = ProductDetailSerializer
-
-    def get(self, request, *args, **kwargs):
-        product_id = self.kwargs.get("product_id")
-        if product_id is None:
-            return Response({"message": "This field is required", "status": "succeed"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        product = Product.categorized.filter(id=product_id)
-        if not product.exists():
-            return Response({"message": "This product does not exist, try again", "status": "failed"},
-                            status=status.HTTP_404_NOT_FOUND)
-        product = product.get()
-        related_products = product.category.products.exclude(id=product_id)[:10]
-        product_serializer = self.get_serializer(product)
-        related_products_serializer = ProductSerializer(related_products, many=True)
-        product_reviews = product.product_reviews.select_related('customer')
-        product_review_serializer = ProductReviewSerializer(product_reviews, many=True)
-        return Response({"message": "Product successfully fetched",
-                         "data": {
-                             "product_details": product_serializer.data,
-                             "related_products": related_products_serializer.data,
-                             "product_reviews": product_review_serializer.data
-                         }, "status": "succeed"}, status=status.HTTP_200_OK)
-
-
-class CreateProductReviewView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = AddProductReviewSerializer
+            addresses = Address.objects.filter(customer=self.request.user)
+            if not addresses.exists():
+                return Response({"message": "Customer has no addresses", "status": "succeed"},
+                                status=status.HTTP_200_OK)
+            serializer = AddressSerializer(addresses, many=True)
+            return Response(
+                    {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "succeed"},
+                    status=status.HTTP_200_OK)
 
     def post(self, request):
-        customer = self.request.user
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        product_id = data.get('id')
-        product = Product.categorized.get(id=product_id)
-        images = request.FILES.getlist('images')
-        if len(images) > 3:
-            return Response({"message": "The maximum number of allowed images is 3", "status": "failed"},
-                            status=status.HTTP_400_BAD_REQUEST)
-        product_review = ProductReview.objects.create(customer=customer, product=product, **data)
-        for image in images:
-            ProductReviewImage.objects.create(product_review=product_review, _image=image)
-        return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
+        serializer.save()
+        return Response({"message": "Address added successfully", "data": serializer.data},
+                        status=status.HTTP_201_CREATED)
 
 
-class ListNotificationView(GenericAPIView):
+class AddressUpdateDeleteView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = CreateAddressSerializer
 
-    def get(self, request):
-        customer = self.request.user
-        if customer.is_staff:
-            notifications = Notification.objects.all().values('notification_type', 'title', 'description', 'created')
-        else:
-            notifications = Notification.objects.filter(Q(customers__in=[customer]) | Q(general=True)).values(
-                    'notification_type', 'title', 'customers', 'description', 'created')
-        return Response({"message": "Notifications fetched", "data": notifications, "status": "succeed"},
-                        status.HTTP_200_OK)
-
-
-class ListCategoryView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-
-    @staticmethod
-    def get(request):
-        all_categories = Category.objects.values('id', 'title')
-        women_categories = Category.objects.filter(gender=GENDER_MALE).values('id', 'title')
-        men_categories = Category.objects.filter(gender=GENDER_FEMALE).values('id', 'title')
-        kids_categories = Category.objects.filter(gender=GENDER_KIDS).values('id', 'title')
-        return Response({"message": "All categories fetched", "all_categories": all_categories,
-                         "men_categories": men_categories, "women_categories": women_categories,
-                         "kids_categories": kids_categories, "status": "succeed"}, status=status.HTTP_200_OK)
-
-
-class ProductsFilterView(ListAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = ProductSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_class = ProductFilter
-    search_fields = ['title', 'description']
-    queryset = Product.categorized.all()
-
-    def get(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.serializer_class(queryset, many=True)
-        return Response({"message": "Products filtered successfully", "data": serializer.data, "status": "succeed"},
-                        status.HTTP_200_OK)
-
-
-class ListCartItemView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        customer = self.request.user
-        cart_id = self.kwargs.get("cart_id")
-        if not cart_id:
-            return Response({"message": "Cart ID not provided."}, status=status.HTTP_400_BAD_REQUEST)
+    def patch(self, request, *args, **kwargs):
+        address_id = self.kwargs.get('address_id')
         try:
-            cart = Cart.objects.get(id=cart_id, customer=customer)
-        except Cart.DoesNotExist:
-            return Response({"message": "Cart not found", "status": "failed"},
-                            status=status.HTTP_404_NOT_FOUND)
-        serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
-        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price,
-                         "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
+            address = Address.objects.get(id=address_id, customer=self.request.user)
+        except Address.DoesNotExist:
+            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.serializer_class(address, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        address_id = self.kwargs.get('address_id')
+        try:
+            address = Address.objects.get(id=address_id, customer=self.request.user)
+        except Address.DoesNotExist:
+            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        address.delete()
+        return Response({"message": "Address deleted successfully", "status": "succeed"},
+                        status=status.HTTP_204_NO_CONTENT)
 
 
-class CreateUpdateDeleteCartItemView(GenericAPIView):
+class CartItemCreateUpdateDeleteView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -245,123 +123,152 @@ class CreateUpdateDeleteCartItemView(GenericAPIView):
             return super().get_serializer_class()
 
 
-class ListCreateOrderView(GenericAPIView):
+class CartItemsListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = CreateOrderSerializer
-
-    def _get_order_by_transaction_ref(self, transaction_reference):
-        customer = self.request.user
-        return get_object_or_404(Order, customer=customer, transaction_ref=transaction_reference)
 
     def get(self, request, *args, **kwargs):
-        transaction_reference = self.request.query_params.get('transaction_ref')
         customer = self.request.user
-        if transaction_reference:
-            try:
-                order = self._get_order_by_transaction_ref(transaction_reference)
-                serializer = OrderSerializer(order)
-                return Response(
-                        {"message": "Order retrieved successfully", "data": serializer.data, "status": "succeed"},
-                        status=status.HTTP_200_OK)
-            except Http404:
-                return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            all_orders = Order.objects.filter(customer=customer)
-            if not all_orders.exists():
-                return Response({"message": "Customer has no orders", "status": "succeed"}, status=status.HTTP_200_OK)
-            serializer = OrderListSerializer(all_orders, many=True)
-            return Response(
-                    {"message": "All orders retrieved successfully", "data": serializer.data, "status": "succeed"},
-                    status=status.HTTP_200_OK)
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        return Response({"message": "Order created successfully", "data": serializer.to_representation(order),
-                         "status": "succeed"}, status=status.HTTP_201_CREATED)
+        cart_id = self.kwargs.get("cart_id")
+        if not cart_id:
+            return Response({"message": "Cart ID not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            cart = Cart.objects.get(id=cart_id, customer=customer)
+        except Cart.DoesNotExist:
+            return Response({"message": "Cart not found", "status": "failed"},
+                            status=status.HTTP_404_NOT_FOUND)
+        serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
+        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price,
+                         "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
 
 
-class DeleteOrderView(GenericAPIView):
+class CategoryListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
-    def _get_order_by_transaction_ref(self, transaction_reference):
-        customer = self.request.user
-        return get_object_or_404(Order, customer=customer, transaction_ref=transaction_reference)
-
-    def delete(self, request, *args, **kwargs):
-        transaction_reference = self.kwargs.get('transaction_ref')
-        if not transaction_reference:
-            return Response({"message": "Transaction reference is required."}, status=status.HTTP_400_BAD_REQUEST)
-        order = self._get_order_by_transaction_ref(transaction_reference)
-        if order is None:
-            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-        order.delete()
-        return Response({"message": "Order deleted successfully.", "status": "succeed"},
-                        status=status.HTTP_204_NO_CONTENT)
+    @staticmethod
+    def get(request):
+        all_categories = Category.objects.values('id', 'title')
+        women_categories = Category.objects.filter(gender=GENDER_MALE).values('id', 'title')
+        men_categories = Category.objects.filter(gender=GENDER_FEMALE).values('id', 'title')
+        kids_categories = Category.objects.filter(gender=GENDER_KIDS).values('id', 'title')
+        return Response({"message": "All categories fetched", "all_categories": all_categories,
+                         "men_categories": men_categories, "women_categories": women_categories,
+                         "kids_categories": kids_categories, "status": "succeed"}, status=status.HTTP_200_OK)
 
 
-class ListCreateAddressView(GenericAPIView):
+class CategorySalesView(GenericAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = CreateAddressSerializer
+    serializer_class = ProductSerializer
 
     def get(self, request):
-        address_id = self.request.query_params.get('address_id')
-        if address_id:
-            try:
-                address = Address.objects.get(id=address_id, customer=self.request.user)
-                serializer = AddressSerializer(address)
-                return Response(
-                        {"message": "Address retrieved successfully", "data": serializer.data, "status": "succeed"},
+        categories = Category.objects.values('id', 'title')
+        products_without_flash_sales = Product.categorized.filter(flash_sale_start_date=None, flash_sale_end_date=None)
+        flash_sales = Product.categorized.filter(flash_sale_start_date__lte=timezone.now(),
+                                                 flash_sale_end_date__gte=timezone.now())
+        serializer = self.serializer_class(many=True)
+        mega_sales = products_without_flash_sales.filter(percentage_off__gte=24)
+        products_without_flash_sales_data = serializer.to_representation(products_without_flash_sales)
+        flash_sales_data = serializer.to_representation(flash_sales)
+        mega_sales_data = serializer.to_representation(mega_sales)
+
+        data = {'categories': categories, 'product_without_flash_sales': products_without_flash_sales_data,
+                'flash_sales': flash_sales_data, 'mega_sales': mega_sales_data}
+        return Response({"message": "Fetched all products", "data": data, "status": "success"},
                         status=status.HTTP_200_OK)
-            except Address.DoesNotExist:
-                return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            addresses = Address.objects.filter(customer=self.request.user)
-            if not addresses.exists():
-                return Response({"message": "Customer has no addresses", "status": "succeed"},
-                                status=status.HTTP_200_OK)
-            serializer = AddressSerializer(addresses, many=True)
-            return Response(
-                    {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "succeed"},
-                    status=status.HTTP_200_OK)
+
+
+class FavoriteProductView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"message": "Address added successfully", "data": serializer.data},
-                        status=status.HTTP_201_CREATED)
+        customer = self.request.user
+        product_id = self.kwargs.get("product_id")
+        if not product_id:
+            return Response({"message": "Product id is required", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-
-class UpdateDeleteAddressView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = CreateAddressSerializer
-
-    def patch(self, request, *args, **kwargs):
-        address_id = self.kwargs.get('address_id')
         try:
-            address = Address.objects.get(id=address_id, customer=self.request.user)
-        except Address.DoesNotExist:
-            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = self.serializer_class(address, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "succeed"},
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+
+        favorite, created = FavoriteProduct.objects.get_or_create(customer=customer, product=product)
+        if created:
+            return Response({"message": "Product added to favorites", "status": "success"},
+                            status=status.HTTP_201_CREATED)
+        else:
+            return Response({"message": "Product already in favorites", "status": "success"}, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        customer = self.request.user
+        product_id = self.kwargs.get("product_id")
+        if not product_id:
+            return Response({"message": "Product id is required", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"message": "Invalid product id", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+
+        FavoriteProduct.objects.filter(customer=customer, product=product).delete()
+        return Response({"message": "Product removed from favorite list", "status": "succeed"},
                         status=status.HTTP_200_OK)
 
-    def delete(self, request, *args, **kwargs):
-        address_id = self.kwargs.get('address_id')
-        try:
-            address = Address.objects.get(id=address_id, customer=self.request.user)
-        except Address.DoesNotExist:
-            return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
-        address.delete()
-        return Response({"message": "Address deleted successfully", "status": "succeed"},
-                        status=status.HTTP_204_NO_CONTENT)
+
+class FavoriteProductsListView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = FavoriteProductSerializer
+
+    def get(self, request):
+        customer = self.request.user
+        if customer is None:
+            return Response({"message": "User does not exist", "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
+        favorite_products = FavoriteProduct.objects.filter(customer=customer) \
+            .select_related('product') \
+            .prefetch_related('product__color_inventory__colour', 'product__size_inventory__size', 'product__images')
+        serializer = self.serializer_class(favorite_products, many=True)
+        return Response({"message": "All favorite products fetched", "data": serializer.data, "status": "success"},
+                        status=status.HTTP_200_OK)
 
 
-class CreateOrderAddress(GenericAPIView):
+class FilteredProductListView(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = ProductFilter
+    search_fields = ['title', 'description']
+    queryset = Product.categorized.all()
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(queryset, many=True)
+        return Response({"message": "Products filtered successfully", "data": serializer.data, "status": "succeed"},
+                        status.HTTP_200_OK)
+
+
+class NotificationListView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        customer = self.request.user
+        if customer.is_staff:
+            notifications = Notification.objects.all().values('notification_type', 'title', 'description', 'created')
+        else:
+            notifications = Notification.objects.filter(Q(customers__in=[customer]) | Q(general=True)).values(
+                    'notification_type', 'title', 'customers', 'description', 'created')
+        return Response({"message": "Notifications fetched", "data": notifications, "status": "succeed"},
+                        status.HTTP_200_OK)
+
+
+class GetOrderByTransactionRefMixin:
+    @staticmethod
+    def _get_order_by_transaction_ref(transaction_reference, request):
+        customer = request.user
+        return get_object_or_404(Order, customer=customer, transaction_ref=transaction_reference)
+
+
+class OrderAddressCreateView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         customer = self.request.user
@@ -387,6 +294,102 @@ class CreateOrderAddress(GenericAPIView):
                 {"message": "Address added to the order successfully.", "status": "succeed"},
                 status=status.HTTP_200_OK
         )
+
+
+class OrderListCreateView(GetOrderByTransactionRefMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CreateOrderSerializer
+
+    def get(self, request, *args, **kwargs):
+        transaction_reference = self.request.query_params.get('transaction_ref')
+        customer = self.request.user
+        if transaction_reference:
+            try:
+                order = self._get_order_by_transaction_ref(transaction_reference, request)
+                serializer = OrderSerializer(order)
+                return Response(
+                        {"message": "Order retrieved successfully", "data": serializer.data, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+            except Http404:
+                return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            all_orders = Order.objects.filter(customer=customer)
+            if not all_orders.exists():
+                return Response({"message": "Customer has no orders", "status": "succeed"}, status=status.HTTP_200_OK)
+            serializer = OrderListSerializer(all_orders, many=True)
+            return Response(
+                    {"message": "All orders retrieved successfully", "data": serializer.data, "status": "succeed"},
+                    status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        return Response({"message": "Order created successfully", "data": serializer.to_representation(order),
+                         "status": "succeed"}, status=status.HTTP_201_CREATED)
+
+
+class OrderDeleteView(GetOrderByTransactionRefMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        transaction_reference = self.kwargs.get('transaction_ref')
+        if not transaction_reference:
+            return Response({"message": "Transaction reference is required."}, status=status.HTTP_400_BAD_REQUEST)
+        order = self._get_order_by_transaction_ref(transaction_reference, request)
+        if order is None:
+            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+        order.delete()
+        return Response({"message": "Order deleted successfully.", "status": "succeed"},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+class ProductDetailView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductDetailSerializer
+
+    def get(self, request, *args, **kwargs):
+        product_id = self.kwargs.get("product_id")
+        if product_id is None:
+            return Response({"message": "This field is required", "status": "succeed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        product = Product.categorized.filter(id=product_id)
+        if not product.exists():
+            return Response({"message": "This product does not exist, try again", "status": "failed"},
+                            status=status.HTTP_404_NOT_FOUND)
+        product = product.get()
+        related_products = product.category.products.exclude(id=product_id)[:10]
+        product_serializer = self.get_serializer(product)
+        related_products_serializer = ProductSerializer(related_products, many=True)
+        product_reviews = product.product_reviews.select_related('customer')
+        product_review_serializer = ProductReviewSerializer(product_reviews, many=True)
+        return Response({"message": "Product successfully fetched",
+                         "data": {
+                             "product_details": product_serializer.data,
+                             "related_products": related_products_serializer.data,
+                             "product_reviews": product_review_serializer.data
+                         }, "status": "succeed"}, status=status.HTTP_200_OK)
+
+
+class ProductReviewCreateView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AddProductReviewSerializer
+
+    def post(self, request):
+        customer = self.request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        product_id = data.get('id')
+        product = Product.categorized.get(id=product_id)
+        images = request.FILES.getlist('images')
+        if len(images) > 3:
+            return Response({"message": "The maximum number of allowed images is 3", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        product_review = ProductReview.objects.create(customer=customer, product=product, **data)
+        for image in images:
+            ProductReviewImage.objects.create(product_review=product_review, _image=image)
+        return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
 
 
 class VerifyPaymentView(GenericAPIView):

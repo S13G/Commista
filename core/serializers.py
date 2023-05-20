@@ -139,13 +139,14 @@ class RequestNewPasswordCodeSerializer(serializers.Serializer):
 class UpdateProfileSerializer(serializers.ModelSerializer):
     _avatar = serializers.ImageField(validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])])
     birthday = serializers.DateField()
+    email = serializers.EmailField(read_only=True)
     full_name = serializers.CharField(max_length=255)
     gender = serializers.CharField(max_length=1, validators=[RegexValidator(r'^[MFO]$')])
     phone_number = serializers.CharField(max_length=20)
 
     class Meta:
         model = Profile
-        fields = ['_avatar', 'birthday', 'full_name', 'gender', 'phone_number']
+        fields = ['_avatar', 'birthday', 'email', 'full_name', 'gender', 'phone_number']
 
     @staticmethod
     def validate_phone_number(value):

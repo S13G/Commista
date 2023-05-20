@@ -22,7 +22,7 @@ from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, Lo
 
 
 class ChangeEmailView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     serializer_class = ChangeEmailSerializer
 
     @extend_schema(
@@ -82,7 +82,7 @@ class ChangeEmailView(GenericAPIView):
 
 
 class ChangePasswordView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     serializer_class = ChangePasswordSerializer
 
     @extend_schema(
@@ -198,7 +198,7 @@ class LogoutView(TokenBlacklistView):
 
 
 class ListUpdateProfileView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     serializer_class = ProfileSerializer
 
     @extend_schema(
@@ -326,7 +326,7 @@ class RegisterView(GenericAPIView):
 
 
 class RequestEmailChangeCodeView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     serializer_class = RequestEmailChangeCodeSerializer
 
     @extend_schema(
@@ -399,7 +399,7 @@ class ResendEmailVerificationCodeView(GenericAPIView):
 
 
 class RequestNewPasswordCodeView(GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     serializer_class = RequestNewPasswordCodeSerializer
 
     @extend_schema(

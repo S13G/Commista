@@ -28,7 +28,7 @@ class User(AbstractUser):
             default=False, help_text=_("Indicates whether the user's email is verified.")
     )
     is_modified = models.DateTimeField(
-            default=None, editable=False, help_text=_("Indicates the date the user email was changed.")
+            default=None, null=True, editable=False, help_text=_("Indicates the date the user email was changed.")
     )
 
     USERNAME_FIELD = "email"
@@ -50,6 +50,31 @@ class User(AbstractUser):
         elif self.email_changed and self.is_modified + timedelta(days=10) <= timezone.now():
             self.email_changed = False
 
+        super().save(*args, **kwargs)
+
+
+class Otp(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp",
+                             help_text=_("The user associated with this OTP."))
+    code = models.PositiveIntegerField(null=True, help_text=_("The OTP code."))
+    expired = models.BooleanField(default=False, help_text=_("Indicates whether the OTP has expired."))
+    expiry_date = models.DateTimeField(null=True, auto_now_add=True, editable=False,
+                                       help_text=_("The date and time when the OTP will expire."))
+
+    def __str__(self):
+        return f"{self.user.full_name} ----- {self.code}"
+
+    def save(self, *args, **kwargs):
+        # Increase the expiry date of the OTP by 15 minutes
+        self.expiry_date += timezone.timedelta(minutes=15)
+
+        # Check if the current time is the same as the expiry date
+        if timezone.now() == self.expiry_date:
+            # If the OTP has expired, mark it as expired and delete it
+            self.expired = True
+            self.delete()
+
+        # Save the OTP model
         super().save(*args, **kwargs)
 
 
@@ -78,28 +103,3 @@ class Profile(BaseModel):
     @property
     def email_address(self):
         return self.user.email
-
-
-class Otp(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp",
-                             help_text=_("The user associated with this OTP."))
-    code = models.PositiveIntegerField(null=True, help_text=_("The OTP code."))
-    expired = models.BooleanField(default=False, help_text=_("Indicates whether the OTP has expired."))
-    expiry_date = models.DateTimeField(null=True, auto_now_add=True, editable=False,
-                                       help_text=_("The date and time when the OTP will expire."))
-
-    def __str__(self):
-        return f"{self.user.full_name} ----- {self.code}"
-
-    def save(self, *args, **kwargs):
-        # Increase the expiry date of the OTP by 15 minutes
-        self.expiry_date += timezone.timedelta(minutes=15)
-
-        # Check if the current time is the same as the expiry date
-        if timezone.now() == self.expiry_date:
-            # If the OTP has expired, mark it as expired and delete it
-            self.expired = True
-            self.delete()
-
-        # Save the OTP model
-        super().save(*args, **kwargs)
