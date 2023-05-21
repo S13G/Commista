@@ -199,6 +199,6 @@ class AddressAdmin(admin.ModelAdmin):
     list_display = ("customer", "first_name", "last_name", "country", "city", "zip_code")
     list_filter = ("country", "city", "zip_code", "customer")
     list_per_page = 20
-    list_select_related = ["country"]
-    ordering = ("country__name", "city", "first_name")
-    search_fields = ("first_name__istartswith", "last_name__istartswith", "country__name")
+    list_select_related = ["customer"]
+    ordering = ("country", "city", "first_name")
+    search_fields = ("first_name__istartswith", "last_name__istartswith", "country")

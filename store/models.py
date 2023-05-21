@@ -68,30 +68,25 @@ class ProductsManager(models.Manager):
 
 class Product(BaseModel):
     title = models.CharField(max_length=255, unique=True)
-    slug = AutoSlugField(
-            populate_from="title", unique=True, always_update=True, editable=False,
-            help_text=_("Auto-generated slug based on the product title.")
-    )
+    slug = AutoSlugField(populate_from="title", unique=True, always_update=True, editable=False)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products")
     description = models.TextField()
     style = models.CharField(max_length=255, help_text=_("Enter the product style."))
     price = models.DecimalField(max_digits=6, decimal_places=2)
-    shipped_out_days = models.IntegerField(
-            help_text=_("Enter the number of days it takes to ship the product.")
-    )
+    shipped_out_days = models.IntegerField(default=settings.DEFAULT_PRODUCT_SHIPPING_DAYS)
     shipping_fee = models.DecimalField(
             max_digits=6, decimal_places=2, validators=[MinValueValidator(0)],
-            help_text=_("Enter the shipping fee for the product.")
+            default=settings.DEFAULT_PRODUCT_SHIPPING_FEE
     )
     inventory = models.IntegerField(
-            validators=[MinValueValidator(0)], help_text=_("Enter the product inventory(amount in stock).")
+            validators=[MinValueValidator(0)], help_text=_("Product amount in stock.")
     )
     percentage_off = models.PositiveIntegerField(default=0)
     condition = models.CharField(
             max_length=2, choices=CONDITION_CHOICES, blank=True, null=True,
             help_text=_("Select the condition of the product.")
     )
-    location = CountryField()
+    location = CountryField(help_text=_("Select the product's location"))
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
     objects = models.Manager()
@@ -219,7 +214,7 @@ class ProductReviewImage(models.Model):
 
 
 class Notification(BaseModel):
-    customers = models.ManyToManyField(Customer)
+    customers = models.ManyToManyField(Customer, blank=True)
     notification_type = models.CharField(max_length=1, choices=NOTIFICATION_CHOICES)
     title = models.CharField(max_length=255)
     description = models.TextField()
@@ -257,7 +252,6 @@ class Order(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
     transaction_ref = models.CharField(max_length=32, unique=True)
     placed_at = models.DateTimeField(auto_now_add=True)
-    total_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     address = models.ForeignKey(
             'Address', on_delete=models.SET_NULL, blank=True, null=True, related_name="orders_address"
     )
@@ -267,6 +261,17 @@ class Order(BaseModel):
     shipping_status = models.CharField(
             max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
     )
+
+    @property
+    def total_price(self):
+        cart_total = sum([item.total_price for item in self.order_items.all()])
+        return cart_total
+
+    @property
+    def total_items(self):
+        order_items = self.order_items.all()
+        total = sum([item.quantity for item in order_items])
+        return total
 
     @property
     def estimated_shipping_date(self):
@@ -281,10 +286,10 @@ class OrderItem(BaseModel):
     customer = models.ForeignKey(
             Customer, on_delete=models.CASCADE, related_name="order_items", null=True
     )
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="orderitems")
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="order_items")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="order_items")
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
-    price = models.DecimalField(max_digits=6, decimal_places=2)
+    extra_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     size = models.CharField(max_length=20, null=True)
     colour = models.CharField(max_length=20, null=True)
     ordered = models.BooleanField(default=False)
@@ -294,20 +299,12 @@ class OrderItem(BaseModel):
             f"{self.order.transaction_ref} --- {self.product.title} --- {self.quantity}"
         )
 
-
-class Cart(BaseModel):
-    customer = models.ForeignKey(
-            Customer, on_delete=models.CASCADE, null=True, related_name="carts"
-    )
-
-
-class CartItem(BaseModel):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="cart_items")
-    size = models.CharField(max_length=20, null=True)
-    colour = models.CharField(max_length=20, null=True)
-    quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
-    extra_price = models.DecimalField(max_digits=6, decimal_places=2, null=True)
+    @property
+    def total_price(self):
+        extra_price = self.extra_price
+        if float(self.product.discount_price) > 0:
+            return self.quantity * (self.product.discount_price + self.product.shipping_fee + extra_price)
+        return self.quantity * (self.product.price + self.product.shipping_fee + extra_price)
 
 
 class Address(BaseModel):

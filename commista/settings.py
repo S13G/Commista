@@ -232,6 +232,12 @@ JAZZMIN_UI_TWEAKS = {
 # Shipping months for the Order
 ORDER_SHIPPING_MONTHS = config("ORDER_SHIPPING_MONTHS")
 
+# Default shipping out days for all products
+DEFAULT_PRODUCT_SHIPPING_DAYS = config("DEFAULT_PRODUCT_SHIPPING_DAYS")
+
+# Default product shipping fee for all products
+DEFAULT_PRODUCT_SHIPPING_FEE = config("DEFAULT_PRODUCT_SHIPPING_FEE")
+
 # Flutterwave variables
 FW_KEY = config("FLUTTERWAVE_SECRET_KEY")
 

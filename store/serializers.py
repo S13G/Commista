@@ -6,8 +6,50 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Address, Cart, CartItem, Colour, ColourInventory, CouponCode, FavoriteProduct, Order, \
-    OrderItem, Product, ProductImage, ProductReview, Size, SizeInventory
+from store.models import Address, Colour, ColourInventory, CouponCode, FavoriteProduct, Order, OrderItem, Product, \
+    ProductImage, ProductReview, Size, SizeInventory
+
+
+class AddCheckoutOrderAddressSerializer(serializers.Serializer):
+    tx_ref = serializers.CharField()
+    address_id = serializers.UUIDField()
+
+    def validate(self, attrs):
+        customer = self.context['request'].user
+        tx_ref = attrs.get('tx_ref')
+        address_id = attrs.get('address_id')
+
+        try:
+            Order.objects.get(customer=customer, transaction_ref=tx_ref)
+        except Order.DoesNotExist:
+            raise serializers.ValidationError(
+                    f"Customer does not have an order with this transaction reference: {tx_ref}")
+
+        try:
+            Address.objects.get(customer=customer, id=address_id)
+        except Address.DoesNotExist:
+            raise serializers.ValidationError(f"Customer does not have an address with this id: {address_id}")
+
+        return attrs
+
+    def save(self, **kwargs):
+        customer = self.context['request'].user
+        tx_ref = self.validated_data['tx_ref']
+        address_id = self.validated_data['address_id']
+
+        # Check if the address is already added to the order
+        try:
+            order = Order.objects.get(customer=customer, transaction_ref=tx_ref)
+            if order.address_id == address_id:
+                return ValidationError({"message": "This address is already added to the order."})
+        except Order.DoesNotExist:
+            return ValidationError({"message": "Customer does not have an order with this transaction reference."})
+        address = Address.objects.get(customer=customer, id=address_id)
+
+        order.address = address
+        order.save()
+
+        return order
 
 
 class ColourSerializer(serializers.ModelSerializer):
@@ -143,16 +185,17 @@ class ProductReviewSerializer(serializers.ModelSerializer):
 
 
 class AddProductReviewSerializer(serializers.ModelSerializer):
+    product_id = serializers.UUIDField()
     images = serializers.ListField(
             child=serializers.ImageField(), required=False, max_length=3
     )
 
     class Meta:
         model = ProductReview
-        fields = ["id", "ratings", "description", "images"]
+        fields = ["product_id", "ratings", "description", "images"]
 
     @staticmethod
-    def validate_id(value):
+    def validate_product_id(value):
         if not Product.categorized.filter(id=value).exists():
             raise ValidationError(
                     {
@@ -170,16 +213,16 @@ class CartItemSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = CartItem
-        fields = ["cart_id", "product", "size", "colour", "quantity", "discount_price", "quantity", "total_price"]
+        model = OrderItem
+        fields = ["order_id", "product", "size", "colour", "quantity", "discount_price", "quantity", "total_price"]
 
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer()
 
     class Meta:
-        model = Cart
-        fields = ["id", "items", "total_price"]
+        model = Order
+        fields = ["id", "order_items", "total_price", "total_items"]
 
 
 def validate_cart_item(attrs):
@@ -227,41 +270,46 @@ class AddCartItemSerializer(serializers.Serializer):
 
         product = get_object_or_404(Product, id=product_id)
         if product.inventory <= 0:
-            raise ValidationError({"message": "This product is not available", "status": "failed"})
-        cart, _ = Cart.objects.get_or_create(id=cart_id, customer=customer)
+            raise ValidationError({"message": "This product is out of stock", "status": "failed"})
+        cart, _ = Order.objects.get_or_create(id=cart_id, customer=customer)
 
         extra_price = 0
         if size:
             size_inv = get_object_or_404(SizeInventory, size__title__iexact=size, product=product)
             if size_inv.quantity <= 0:
-                raise ValidationError({"message": "Size for this product is not available", "status": "failed"})
+                raise ValidationError({"message": "Size for this product is out of stock", "status": "failed"})
             extra_price += size_inv.extra_price
 
         if colour:
-            colour_inv = get_object_or_404(ColourInventory, colour__name__iexact=colour, product=product)  #
+            colour_inv = get_object_or_404(ColourInventory, colour__name__iexact=colour, product=product)
             if colour_inv.quantity <= 0:
-                raise ValidationError({"message": "Colour for this product is not available", "status": "failed"})
+                raise ValidationError({"message": "Colour for this product is out of stock", "status": "failed"})
             extra_price += colour_inv.extra_price
 
-        cart_item = cart.items.filter(product=product, size=size, colour=colour).first()
+        cart_item = cart.order_items.filter(product=product, size=size, colour=colour).first()
         if cart_item:
             cart_item.quantity = quantity
             cart_item.extra_price = extra_price
             cart_item.save()
         else:
-            cart_item = CartItem.objects.create(
-                    cart=cart,
-                    product=product,
-                    size=size,
-                    colour=colour,
-                    quantity=quantity,
-                    extra_price=extra_price
-            )
+            cart_item = [
+                OrderItem(
+                        customer=customer,
+                        order=cart,
+                        product=item.product,
+                        size=item.size,
+                        colour=item.colour,
+                        quantity=item.quantity,
+                        extra_price=item.extra_price
+                )
+                for item in cart.order_items.all()
+            ]
+            OrderItem.objects.bulk_create(cart_item)
 
         if cart_item.quantity == 0:
             cart_item.delete()
 
-        if cart.items.count() == 0:
+        if cart.order_items.count() == 0:
             cart.delete()
 
         return cart_item
@@ -285,10 +333,10 @@ class UpdateCartItemSerializer(serializers.Serializer):
         colour = self.validated_data.get("colour", "")
 
         try:
-            cart = Cart.objects.get(id=cart_id, customer=customer)
+            cart = Order.objects.get(id=cart_id, customer=customer)
             product = Product.objects.get(id=product_id)
-            item = CartItem.objects.get(cart=cart, product=product)
-        except Cart.DoesNotExist:
+            item = OrderItem.objects.get(order=cart, product=product)
+        except Order.DoesNotExist:
             raise ValidationError({
                 "message": "Invalid cart ID. Please check the provided ID.",
                 "status": "failed",
@@ -298,7 +346,7 @@ class UpdateCartItemSerializer(serializers.Serializer):
                 "message": "Invalid product ID. Please check the provided ID.",
                 "status": "failed",
             })
-        except CartItem.DoesNotExist:
+        except OrderItem.DoesNotExist:
             raise ValidationError({
                 "message": "Cart item does not exist. Please add the product to the cart first.",
                 "status": "failed",
@@ -347,10 +395,10 @@ class DeleteCartItemSerializer(serializers.Serializer):
     def save(self, **kwargs):
         customer = self.context["request"].user
         try:
-            cart = Cart.objects.get(id=self.validated_data["cart_id"], customer=customer)
+            cart = Order.objects.get(id=self.validated_data["cart_id"], customer=customer)
             product = Product.objects.get(id=self.validated_data.get("product_id"))
-            item = CartItem.objects.get(cart=cart, product=product)
-        except (Cart.DoesNotExist, Product.DoesNotExist, CartItem.DoesNotExist):
+            item = OrderItem.objects.get(order=cart, product=product)
+        except (Order.DoesNotExist, Product.DoesNotExist, OrderItem.DoesNotExist):
             raise ValidationError(
                     {
                         "message": "Invalid cart or product ID. Please check the provided IDs.",
@@ -381,7 +429,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 "size": item.size,
                 "colour": item.colour
             }
-            for item in obj.items.all()
+            for item in obj.order_items.all()
         ]
 
 
@@ -395,21 +443,22 @@ class OrderListSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_items_count(obj: Order):
-        return f"{obj.items.count()} item(s) ordered"
+        return f"{obj.order_items.count()} item(s) ordered"
 
 
-class CreateOrderSerializer(serializers.Serializer):
+class CheckoutSerializer(serializers.Serializer):
     coupon_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
 
     def save(self, **kwargs):
         customer = self.context["request"].user
         coupon_discount = 0
-        try:
-            cart = Cart.objects.select_for_update().get(customer=customer)
-        except Cart.DoesNotExist:
-            raise ValidationError({"message": "Cart not found", "status": "failed"})
 
         with transaction.atomic():
+            try:
+                cart = Order.objects.select_for_update().get(customer=customer)
+            except Order.DoesNotExist:
+                raise ValidationError({"message": "Cart not found", "status": "failed"})
+
             if self.validated_data.get("coupon_code"):
                 try:
                     coupon = CouponCode.objects.get(
@@ -425,31 +474,14 @@ class CreateOrderSerializer(serializers.Serializer):
 
             transaction_ref = uuid.uuid4().hex[:10]
 
-            order = Order.objects.create(
-                    customer=customer, total_price=cart.total_price - coupon_discount,
-                    transaction_ref=f"TR-{transaction_ref}"
-            )
-
-            order_items = [
-                OrderItem(
-                        customer=customer,
-                        order=order,
-                        product=item.product,
-                        quantity=item.quantity,
-                        size=item.size,
-                        colour=item.colour,
-                        unit_price=item.product.price,
-                )
-                for item in cart.items.all()
-            ]
-            OrderItem.objects.bulk_create(order_items)
-
-            cart.delete()
+            cart.transaction_ref = f"TR-{transaction_ref}"
+            cart.total_price -= coupon_discount
+            order = cart.save()
 
         return order
 
     def to_representation(self, instance: Order):
-        items = instance.items.values_list(
+        items = instance.order_items.values_list(
                 "id", "product__id", "product__title", "quantity", "product__shipping_fee"
         )
         return {
@@ -458,6 +490,7 @@ class CreateOrderSerializer(serializers.Serializer):
             'transaction_reference"': instance.transaction_ref,
             "total_price": instance.total_price,
             "placed_at": instance.placed_at,
+            "estimated_shipping_date": instance.estimated_shipping_date,
             "shipping_status": instance.shipping_status,
             "payment_status": instance.payment_status,
             "items": [
@@ -488,41 +521,6 @@ class CreateAddressSerializer(serializers.ModelSerializer):
                   'zip_code', 'phone_number']
 
     def create(self, validated_data):
-        address = Address.objects.create(**validated_data)
+        customer = self.context['request'].user
+        address = Address.objects.create(customer=customer, **validated_data)
         return address
-
-
-class PaymentSerializer(serializers.Serializer):
-    tx_ref = serializers.CharField()
-    address_id = serializers.UUIDField()
-
-    def validate(self, attrs):
-        customer = self.context['request'].user
-        tx_ref = attrs.get('tx_ref')
-        address_id = attrs.get('address_id')
-
-        try:
-            Order.objects.get(customer=customer, transaction_ref=tx_ref)
-        except Order.DoesNotExist:
-            raise serializers.ValidationError(
-                    f"Customer does not have an order with this transaction reference: {tx_ref}")
-
-        try:
-            Address.objects.get(customer=customer, id=address_id)
-        except Address.DoesNotExist:
-            raise serializers.ValidationError(f"Customer does not have an address with this id: {address_id}")
-
-        return attrs
-
-    def save(self, **kwargs):
-        customer = self.context['request'].user
-        tx_ref = self.validated_data['tx_ref']
-        address_id = self.validated_data['address_id']
-
-        order = Order.objects.get(customer=customer, transaction_ref=tx_ref)
-        address = Address.objects.get(customer=customer, id=address_id)
-
-        order.address = address
-        order.save()
-
-        return order

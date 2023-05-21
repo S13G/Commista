@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, TokenObtainPairSerializer, \
     TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView, TokenRefreshView
@@ -168,6 +169,7 @@ class LoginView(TokenObtainPairView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         tokens = super().post(request)
+
         return Response({"message": "Logged in successfully", "tokens": tokens.data,
                          "data": {"email": user.email, "full_name": user.full_name}, "status": "success"},
                         status=status.HTTP_200_OK)
@@ -193,8 +195,12 @@ class LogoutView(TokenBlacklistView):
     )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response({"message": "Logged out successfully.", "status": "success"}, status=status.HTTP_200_OK)
+        try:
+            serializer.is_valid(raise_exception=True)
+            return Response({"message": "Logged out successfully.", "status": "success"}, status=status.HTTP_200_OK)
+        except TokenError:
+            return Response({"message": "Token is blacklisted.", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class ListUpdateProfileView(GenericAPIView):
