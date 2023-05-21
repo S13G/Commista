@@ -17,6 +17,11 @@ from common.models import BaseModel
 from core.validators import validate_phone_number
 from store.choices import (CONDITION_CHOICES, GENDER_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
                            RATING_CHOICES, SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
+from store.managers import AddressManager, ColourInventoryManager, FavoriteProductManager, OrderItemManager, \
+    OrderManager, \
+    ProductManager, \
+    ProductReviewManager, \
+    SizeInventoryManager
 from store.validators import validate_image_size
 
 # Create your models here.
@@ -52,20 +57,6 @@ class Colour(BaseModel):
         return f"{self.name} ---- {self.hex_code}"
 
 
-class ProductsManager(models.Manager):
-    def get_queryset(self):
-        return super(ProductsManager, self) \
-            .get_queryset() \
-            .prefetch_related(
-                'category',
-                'product_reviews',
-                'size_inventory',
-                'color_inventory',
-                'images'
-        ) \
-            .filter(inventory__gt=0)
-
-
 class Product(BaseModel):
     title = models.CharField(max_length=255, unique=True)
     slug = AutoSlugField(populate_from="title", unique=True, always_update=True, editable=False)
@@ -89,8 +80,8 @@ class Product(BaseModel):
     location = CountryField(help_text=_("Select the product's location"))
     flash_sale_start_date = models.DateTimeField(null=True, blank=True)
     flash_sale_end_date = models.DateTimeField(null=True, blank=True)
-    objects = models.Manager()
-    categorized = ProductsManager()
+
+    objects = ProductManager()
 
     def __str__(self):
         return f"{self.title} --- {self.category}"
@@ -123,6 +114,8 @@ class ColourInventory(models.Model):
             help_text=_("The extra price for this color variant.")
     )
 
+    objects = ColourInventoryManager()
+
     class Meta:
         verbose_name_plural = _("Product Color & Inventories")
 
@@ -140,6 +133,8 @@ class SizeInventory(models.Model):
             max_digits=6, decimal_places=2, blank=True, null=True, default=0,
             help_text=_("The extra price for this size variant.")
     )
+
+    objects = SizeInventoryManager()
 
     class Meta:
         verbose_name_plural = _("Product Size & Inventories")
@@ -165,6 +160,8 @@ class ProductImage(models.Model):
 class FavoriteProduct(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="favorite_products")
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="customer_favorites")
+
+    objects = FavoriteProductManager()
 
     class Meta:
         constraints = [
@@ -195,6 +192,8 @@ class ProductReview(BaseModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product_reviews")
     ratings = models.IntegerField(choices=RATING_CHOICES, null=True)
     description = models.TextField()
+
+    objects = ProductReviewManager()
 
     def __str__(self):
         return f"{self.customer.full_name} --- {self.product.title} --- {self.ratings} stars"
@@ -250,7 +249,7 @@ class CouponCode(BaseModel):
 
 class Order(BaseModel):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, related_name="orders")
-    transaction_ref = models.CharField(max_length=32, unique=True)
+    transaction_ref = models.CharField(max_length=32, unique=True, null=True)
     placed_at = models.DateTimeField(auto_now_add=True)
     address = models.ForeignKey(
             'Address', on_delete=models.SET_NULL, blank=True, null=True, related_name="orders_address"
@@ -262,8 +261,10 @@ class Order(BaseModel):
             max_length=2, choices=SHIPPING_STATUS_CHOICES, default=SHIPPING_STATUS_PENDING
     )
 
+    objects = OrderManager()
+
     @property
-    def total_price(self):
+    def all_total_price(self):
         cart_total = sum([item.total_price for item in self.order_items.all()])
         return cart_total
 
@@ -294,6 +295,8 @@ class OrderItem(BaseModel):
     colour = models.CharField(max_length=20, null=True)
     ordered = models.BooleanField(default=False)
 
+    objects = OrderItemManager()
+
     def __str__(self):
         return (
             f"{self.order.transaction_ref} --- {self.product.title} --- {self.quantity}"
@@ -318,6 +321,8 @@ class Address(BaseModel):
     state = models.CharField(max_length=255)
     zip_code = models.CharField(max_length=10)
     phone_number = models.CharField(max_length=20, validators=[validate_phone_number])
+
+    objects = AddressManager()
 
     class Meta:
         verbose_name_plural = _("Addresses")

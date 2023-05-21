@@ -11,6 +11,7 @@ urlpatterns = [
     path("categories/all-with-sales/", views.CategorySalesView.as_view(), name="category_product_sales"),
     path("checkout/", views.CheckoutView.as_view(), name="checkout"),
     path("checkout/order/address/", views.CheckoutOrderAddressCreateView.as_view(), name="checkout_order_address"),
+    path("coupon-codes/", views.CouponCodeView.as_view(), name="coupon_codes"),
     path("favorite-products/", views.FavoriteProductsListView.as_view(), name="favorite_products_list"),
     path("favorite-products/<str:product_id>/", views.FavoriteProductView.as_view(),
          name="favorite_product"),

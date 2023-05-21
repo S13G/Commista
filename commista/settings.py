@@ -230,7 +230,7 @@ JAZZMIN_UI_TWEAKS = {
 }
 
 # Shipping months for the Order
-ORDER_SHIPPING_MONTHS = config("ORDER_SHIPPING_MONTHS")
+ORDER_SHIPPING_MONTHS = int(config("ORDER_SHIPPING_MONTHS"))
 
 # Default shipping out days for all products
 DEFAULT_PRODUCT_SHIPPING_DAYS = config("DEFAULT_PRODUCT_SHIPPING_DAYS")

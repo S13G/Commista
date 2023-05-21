@@ -15,7 +15,7 @@ from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPL
     SHIPPING_STATUS_PROCESSING
 from store.filters import ProductFilter
 from store.mixins import GetOrderByTransactionRefMixin
-from store.models import Address, Category, ColourInventory, FavoriteProduct, Notification, Order, Product, \
+from store.models import Address, Category, ColourInventory, CouponCode, FavoriteProduct, Notification, Order, Product, \
     ProductReview, ProductReviewImage, SizeInventory
 from store.serializers import AddCartItemSerializer, AddCheckoutOrderAddressSerializer, AddProductReviewSerializer, \
     AddressSerializer, CartItemSerializer, CheckoutSerializer, CreateAddressSerializer, DeleteCartItemSerializer, \
@@ -137,8 +137,8 @@ class CartItemsListView(GenericAPIView):
         except Order.DoesNotExist:
             return Response({"message": "Cart not found", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
-        serializer = CartItemSerializer(cart.items.all(), many=True, context={'request': request})
-        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.total_price,
+        serializer = CartItemSerializer(cart.order_items.all(), many=True, context={'request': request})
+        return Response({"message": "Cart items retrieved successfully", "cart_total": cart.all_total_price,
                          "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
 
 
@@ -161,10 +161,10 @@ class CategorySalesView(GenericAPIView):
     serializer_class = ProductSerializer
 
     def get(self, request):
-        categories = Category.objects.values('id', 'title',)
-        products_without_flash_sales = Product.categorized.filter(flash_sale_start_date=None, flash_sale_end_date=None)
-        product_with_flash_sales = Product.categorized.filter(flash_sale_start_date__lte=timezone.now(),
-                                                              flash_sale_end_date__gte=timezone.now())
+        categories = Category.objects.values('id', 'title', )
+        products_without_flash_sales = Product.objects.filter(flash_sale_start_date=None, flash_sale_end_date=None)
+        product_with_flash_sales = Product.objects.filter(flash_sale_start_date__lte=timezone.now(),
+                                                          flash_sale_end_date__gte=timezone.now())
         mega_sales = products_without_flash_sales.filter(percentage_off__gte=24)
 
         serializer = self.serializer_class(many=True)
@@ -244,6 +244,16 @@ class FavoriteProductView(GenericAPIView):
                         status=status.HTTP_200_OK)
 
 
+class CouponCodeView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def get(request):
+        coupon_codes = CouponCode.objects.values('id', 'code', 'price', 'expired', 'expiry_date')
+        return Response({"message": "All coupons fetched", "data": coupon_codes, "status": "succeed"},
+                        status=status.HTTP_200_OK)
+
+
 class FavoriteProductsListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = FavoriteProductSerializer
@@ -267,7 +277,7 @@ class FilteredProductListView(ListAPIView):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = ProductFilter
     search_fields = ['title', 'description']
-    queryset = Product.categorized.all()
+    queryset = Product.objects.all()
 
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -338,7 +348,7 @@ class ProductDetailView(GenericAPIView):
             return Response({"message": "This field is required", "status": "succeed"},
                             status=status.HTTP_400_BAD_REQUEST)
         try:
-            product = Product.categorized.get(id=product_id)
+            product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
             return Response({"message": "This product does not exist, try again", "status": "failed"},
                             status=status.HTTP_404_NOT_FOUND)
@@ -364,7 +374,7 @@ class ProductReviewCreateView(GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         product_id = serializer.validated_data.get('product_id')
-        product = Product.categorized.get(id=product_id)
+        product = Product.objects.get(id=product_id)
         images = request.FILES.getlist('images')
         if len(images) > 3:
             return Response({"message": "The maximum number of allowed images is 3", "status": "failed"},
@@ -396,17 +406,19 @@ class VerifyPaymentView(GenericAPIView):
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {settings.FW_KEY}"
         }
-
-        response = requests.get(url, headers=headers).json()
-        response_data = response.get('data')
-        response_status = response_data.get('status')
+        try:
+            response = requests.get(url, headers=headers).json()
+            response_data = response.get('data')
+            response_status = response_data.get('status')
+        except Exception as e:
+            return Response({"message": str(e), "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
         if response_status != 'successful':
             order.payment_status = PAYMENT_FAILED
             order.save()
             return Response({"message": "Payment failed", "status": "failed"},
                             status=status.HTTP_417_EXPECTATION_FAILED)
         response_amount = response_data.get('charged_amount')
-        if order.total_price > response_amount:
+        if order.all_total_price > response_amount:
             return Response({"message": "Invalid payment", "status": "failed"}, status=status.HTTP_406_NOT_ACCEPTABLE)
         order.payment_status = PAYMENT_COMPLETE
         order.shipping_status = SHIPPING_STATUS_PROCESSING

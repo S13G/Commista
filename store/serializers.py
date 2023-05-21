@@ -181,7 +181,7 @@ class ProductReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductReview
-        fields = ("customer_full_name", "ratings", "description")
+        fields = ("customer_name", "ratings", "description")
 
 
 class AddProductReviewSerializer(serializers.ModelSerializer):
@@ -196,7 +196,7 @@ class AddProductReviewSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_product_id(value):
-        if not Product.categorized.filter(id=value).exists():
+        if not Product.objects.filter(id=value).exists():
             raise ValidationError(
                     {
                         "message": "This product does not exist, try again",
@@ -208,21 +208,14 @@ class AddProductReviewSerializer(serializers.ModelSerializer):
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = SimpleProductSerializer()
+    cart_id = serializers.UUIDField(source="order_id")
     discount_price = serializers.DecimalField(
             max_digits=6, decimal_places=2, source="product.discount_price"
     )
 
     class Meta:
         model = OrderItem
-        fields = ["order_id", "product", "size", "colour", "quantity", "discount_price", "quantity", "total_price"]
-
-
-class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer()
-
-    class Meta:
-        model = Order
-        fields = ["id", "order_items", "total_price", "total_items"]
+        fields = ["cart_id", "product", "size", "colour", "extra_price", "discount_price", "quantity", "total_price"]
 
 
 def validate_cart_item(attrs):
@@ -287,24 +280,21 @@ class AddCartItemSerializer(serializers.Serializer):
             extra_price += colour_inv.extra_price
 
         cart_item = cart.order_items.filter(product=product, size=size, colour=colour).first()
+
         if cart_item:
             cart_item.quantity = quantity
             cart_item.extra_price = extra_price
             cart_item.save()
         else:
-            cart_item = [
-                OrderItem(
-                        customer=customer,
-                        order=cart,
-                        product=item.product,
-                        size=item.size,
-                        colour=item.colour,
-                        quantity=item.quantity,
-                        extra_price=item.extra_price
-                )
-                for item in cart.order_items.all()
-            ]
-            OrderItem.objects.bulk_create(cart_item)
+            cart_item = OrderItem.objects.create(
+                    customer=customer,
+                    order=cart,
+                    product=product,
+                    size=size,
+                    colour=colour,
+                    quantity=quantity,
+                    extra_price=extra_price
+            )
 
         if cart_item.quantity == 0:
             cart_item.delete()
@@ -413,8 +403,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'transaction_ref', 'items', 'total_price', 'placed_at', 'estimated_shipping_date',
-                  'shipping_status', 'payment_status']
+        fields = ['id', 'transaction_ref', 'items', 'all_total_price', 'placed_at', 'address',
+                  'estimated_shipping_date', 'shipping_status', 'payment_status']
 
     @staticmethod
     def get_items(obj: Order):
@@ -438,8 +428,8 @@ class OrderListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'transaction_ref', 'items_count', 'total_price', 'placed_at', 'estimated_shipping_date',
-                  'payment_status']
+        fields = ['id', 'transaction_ref', 'items_count', 'all_total_price', 'placed_at', 'address',
+                  'estimated_shipping_date', 'payment_status']
 
     @staticmethod
     def get_items_count(obj: Order):
@@ -455,7 +445,7 @@ class CheckoutSerializer(serializers.Serializer):
 
         with transaction.atomic():
             try:
-                cart = Order.objects.select_for_update().get(customer=customer)
+                order = Order.objects.select_for_update().filter(customer=customer).first()
             except Order.DoesNotExist:
                 raise ValidationError({"message": "Cart not found", "status": "failed"})
 
@@ -473,10 +463,15 @@ class CheckoutSerializer(serializers.Serializer):
                     )
 
             transaction_ref = uuid.uuid4().hex[:10]
+            if order.transaction_ref:
+                raise ValidationError(
+                        {"message": "Order has already been checked out. Make a different order", "status": "failed"})
 
-            cart.transaction_ref = f"TR-{transaction_ref}"
-            cart.total_price -= coupon_discount
-            order = cart.save()
+            order.transaction_ref = f"TR-{transaction_ref}"
+            print(order.all_total_price)
+            order.all_total_price - coupon_discount
+            print(order.all_total_price)
+            order.save()
 
         return order
 
@@ -487,9 +482,10 @@ class CheckoutSerializer(serializers.Serializer):
         return {
             "id": instance.id,
             "customer": instance.customer.full_name,
-            'transaction_reference"': instance.transaction_ref,
-            "total_price": instance.total_price,
+            "transaction_reference": instance.transaction_ref,
+            "total_price": instance.all_total_price,
             "placed_at": instance.placed_at,
+            "address": instance.address,
             "estimated_shipping_date": instance.estimated_shipping_date,
             "shipping_status": instance.shipping_status,
             "payment_status": instance.payment_status,
@@ -517,7 +513,8 @@ class CreateAddressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Address
-        fields = ['country', 'first_name', 'last_name', 'street_address', 'second_street_address', 'city', 'state',
+        fields = ['id', 'country', 'first_name', 'last_name', 'street_address', 'second_street_address', 'city',
+                  'state',
                   'zip_code', 'phone_number']
 
     def create(self, validated_data):
