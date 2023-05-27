@@ -347,3 +347,9 @@ class AuthenticationTestCase(APITestCase):
         response = self.client.delete(reverse_lazy("favorite_product", kwargs={"product_id": product_id}))
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT, response.data)
         self.assertEqual(response.data['message'], "Product removed from favorites list")
+
+    def test_get_coupon_code_list(self):
+        self._authenticate_user()
+        response = self.client.get(reverse_lazy("coupon_codes"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['message'], "All coupons fetched")
