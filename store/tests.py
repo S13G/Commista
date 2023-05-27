@@ -10,19 +10,33 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, APITestCase
 
 from core.models import Otp
-from store.models import Product
+from store.models import Category, Colour, ColourInventory, Product, ProductImage, Size, SizeInventory
 
 
 class AuthenticationTestCase(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.Product = Product.objects.all()
+        cls.Category = Category.objects.all()
         cls.User = get_user_model()
 
     def setUp(self):
         self.code = random.randint(1000, 9999)
         self.expiry_date = timezone.now() + timedelta(minutes=15)
-        self.store_data = {}
+
+        self.category_data = [
+            {
+                "title": "Fashion",
+                "gender": "A"
+            },
+            {
+                "title": "Toys",
+                "gender": "K"
+            }
+        ]
+        self.first_category = Category.objects.create(**self.category_data[0])
+        self.second_category = Category.objects.create(**self.category_data[1])
+
         self.user_data = {
             "first_name": "John",
             "last_name": "Doe",
@@ -35,6 +49,7 @@ class AuthenticationTestCase(APITestCase):
             "email": "loplo1@gmail.com",
             "password": "string",
         }
+
         self.address_data = {
             "country": "US",
             "first_name": "Smith",
@@ -47,7 +62,7 @@ class AuthenticationTestCase(APITestCase):
             "phone_number": "+09873778282"
         }
 
-        self.updated_data = {
+        self.updated_address_data = {
             "country": "AF",
             "first_name": "Domino",
             "last_name": "Daanny",
@@ -59,10 +74,120 @@ class AuthenticationTestCase(APITestCase):
             "phone_number": "+43987377232"
         }
 
+        # create colour instances
+        self.colour_data = [
+            {
+                "name": "Red",
+                "hex_code": "#979721"
+            },
+            {
+                "name": "Blue",
+                "hex_code": "#232453"
+            }
+        ]
+
+        for colour in self.colour_data:
+            Colour.objects.create(**colour)
+
+        self.size_data = [
+            {
+                "title": "S"
+            },
+            {
+                "title": "M"
+            },
+            {
+                "title": "L"
+            }
+        ]
+
+        for size in self.size_data:
+            Size.objects.create(**size)
+
+        self.colour_inventory_data = [
+            {
+                "colour": "Red",
+                "quantity": 50,
+                "extra_price": 2.99
+            },
+            {
+                "colour": "Blue",
+                "quantity": 30,
+                "extra_price": 0
+            }
+        ]
+
+        self.size_inventory_data = [
+            {
+                "size": "S",
+                "quantity": 20,
+                "extra_price": 0
+            },
+            {
+                "size": "M",
+                "quantity": 30,
+                "extra_price": 1.99
+            },
+            {
+                "size": "L",
+                "quantity": 50,
+                "extra_price": 1.99
+            }
+        ]
+
+        self.colour_inventory = []
+        self.size_inventory = []
+
+        # Create the ColourInventory instances
+        for color_data in self.colour_inventory_data:
+            self.color = ColourInventory.objects.create(**color_data)
+            self.colour_inventory.append(self.color)
+
+        # Create the SizeInventory instances
+        for size_data in self.size_inventory_data:
+            self.size = SizeInventory.objects.create(**size_data)
+            self.size_inventory.append(self.size)
+
+        self.first_product_data = {
+            "title": "Product 1",
+            "slug": "product-1",
+            "category": self.first_category,
+            "description": "Product 1 description",
+            "style": "Product 1 style",
+            "price": 19.99,
+            "shipped_out_days": 2,
+            "shipping_fee": 5.99,
+            "inventory": 100,
+            "percentage_off": 10,
+            "condition": "N",
+            "location": "United States",
+            "flash_sale_start_date": "",
+            "flash_sale_end_date": "",
+        }
+
+        # Assign the related objects using set()
+        self.first_product = Product.objects.create(**self.first_product_data)
+        self.first_product.color_inventory.set(self.colour_inventory)
+        self.first_product.size_inventory.set(self.size_inventory)
+
+        # Add the images
+        self.images = [
+            {
+                "image": "store/product_images/product1_image1.jpg"
+            },
+            {
+                "image": "store/product_images/product1_image2.jpg"
+            }
+        ]
+
+        for img_data in self.images:
+            ProductImage.objects.create(product=self.first_product, **img_data)
+
         self.client = APIClient()
 
     def tearDown(self):
-        self.Product.all().delete()
+        self.Category.delete()
+        self.Product.delete()
         self.User.objects.all().delete()
 
     def _register_user(self):
@@ -128,7 +253,7 @@ class AuthenticationTestCase(APITestCase):
 
     def test_update_specific_user_address(self):
         url = self._specific_user_address()
-        response = self.client.patch(url, data=self.updated_data, format="json")
+        response = self.client.patch(url, data=self.updated_address_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
     def test_delete_specific_user_address(self):
@@ -136,4 +261,45 @@ class AuthenticationTestCase(APITestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
+    def test_get_categories(self):
+        self._authenticate_user()
+        response = self.client.get(reverse_lazy("category_list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify the response data structure
+        data = response.data
+        self.assertIn("message", data)
+        self.assertIn("all_categories", data)
+        self.assertIn("men_categories", data)
+        self.assertIn("women_categories", data)
+        self.assertIn("kids_categories", data)
+        self.assertIn("status", data)
 
+        # Verify the response message
+        self.assertEqual(data["message"], "All categories fetched")
+        self.assertEqual(data['status'], "success")
+
+    def test_get_categories_sales(self):
+        self._authenticate_user()
+        response = self.client.get(reverse_lazy("category_product_sales"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertIn('message', response.data)
+        self.assertIn('data', response.data)
+        self.assertIn('status', response.data)
+
+        data = response.data['data']
+        self.assertIn('categories', data)
+        self.assertIn('product_without_flash_sales', data)
+        self.assertIn('products_with_flash_sales', data)
+        self.assertIn('mega_sales', data)
+
+        self.assertEqual(response.data['message'], "Fetched all products")
+        self.assertEqual(response.data['status'], "success")
+
+    def test_add_user_favorite_product(self):
+        self._authenticate_user()
+        product_id = self.first_product.id
+        print(product_id)
+        response = self.client.post(reverse_lazy("favorite_product", kwargs={"product_id": product_id}))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data['message'], "Product added to favorites")

@@ -228,7 +228,7 @@ class ListUpdateProfileView(GenericAPIView):
                             status=status.HTTP_404_NOT_FOUND)
         serializer = self.get_serializer(customer_profile)
         data = serializer.data
-        return Response({"message": "Profile retrieved successfully", "data": data, "status": "succeed"},
+        return Response({"message": "Profile retrieved successfully", "data": data, "status": "success"},
                         status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -266,7 +266,7 @@ class ListUpdateProfileView(GenericAPIView):
             customer_account.last_name = last_name
             customer_account.save()
         data = serializer.data
-        return Response({"message": "Profile updated successfully", "data": data, "status": "succeed"},
+        return Response({"message": "Profile updated successfully", "data": data, "status": "success"},
                         status=status.HTTP_200_OK)
 
 

@@ -35,18 +35,18 @@ class AddressListCreateView(GenericAPIView):
                 address = Address.objects.get(id=address_id, customer=self.request.user)
                 serializer = AddressSerializer(address)
                 return Response(
-                        {"message": "Address retrieved successfully", "data": serializer.data, "status": "succeed"},
+                        {"message": "Address retrieved successfully", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)
             except Address.DoesNotExist:
                 return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         else:
             addresses = Address.objects.filter(customer=self.request.user)
             if not addresses.exists():
-                return Response({"message": "Customer has no addresses", "status": "succeed"},
+                return Response({"message": "Customer has no addresses", "status": "success"},
                                 status=status.HTTP_200_OK)
             serializer = AddressSerializer(addresses, many=True)
             return Response(
-                    {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "succeed"},
+                    {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "success"},
                     status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -70,7 +70,7 @@ class AddressUpdateDeleteView(GenericAPIView):
         serializer = self.serializer_class(address, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "succeed"},
+        return Response({"message": "Address updated successfully", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
@@ -80,7 +80,7 @@ class AddressUpdateDeleteView(GenericAPIView):
         except Address.DoesNotExist:
             return Response({"message": "Address not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         address.delete()
-        return Response({"message": "Address deleted successfully", "status": "succeed"},
+        return Response({"message": "Address deleted successfully", "status": "success"},
                         status=status.HTTP_204_NO_CONTENT)
 
 
@@ -93,7 +93,7 @@ class CartItemCreateUpdateDeleteView(GenericAPIView):
         cart_item = serializer.save()
         cart_item_data = CartItemSerializer(cart_item, context={'request': request}).data
         return Response(
-                {"message": "Cart item added successfully", "data": cart_item_data, "status": "succeed"},
+                {"message": "Cart item added successfully", "data": cart_item_data, "status": "success"},
                 status=status.HTTP_201_CREATED
         )
 
@@ -103,14 +103,14 @@ class CartItemCreateUpdateDeleteView(GenericAPIView):
         updated_cart_item = serializer.save()
         updated_cart_item_data = CartItemSerializer(updated_cart_item, context={'request': request}).data
         return Response(
-                {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "succeed"},
+                {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "success"},
                 status=status.HTTP_201_CREATED)
 
     def delete(self, request):
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "Item deleted successfully.", "status": "succeed"},
+        return Response({"message": "Item deleted successfully.", "status": "success"},
                         status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
@@ -139,7 +139,7 @@ class CartItemsListView(GenericAPIView):
                             status=status.HTTP_404_NOT_FOUND)
         serializer = CartItemSerializer(cart.order_items.all(), many=True, context={'request': request})
         return Response({"message": "Cart items retrieved successfully", "cart_total": cart.all_total_price,
-                         "data": serializer.data, "status": "succeed"}, status=status.HTTP_200_OK)
+                         "data": serializer.data, "status": "success"}, status=status.HTTP_200_OK)
 
 
 class CategoryListView(GenericAPIView):
@@ -153,7 +153,7 @@ class CategoryListView(GenericAPIView):
         kids_categories = Category.objects.filter(gender=GENDER_KIDS).values('id', 'title')
         return Response({"message": "All categories fetched", "all_categories": all_categories,
                          "men_categories": men_categories, "women_categories": women_categories,
-                         "kids_categories": kids_categories, "status": "succeed"}, status=status.HTTP_200_OK)
+                         "kids_categories": kids_categories, "status": "success"}, status=status.HTTP_200_OK)
 
 
 class CategorySalesView(GenericAPIView):
@@ -188,7 +188,7 @@ class CheckoutView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         return Response({"message": "Order created successfully", "data": serializer.to_representation(order),
-                         "status": "succeed"}, status=status.HTTP_201_CREATED)
+                         "status": "success"}, status=status.HTTP_201_CREATED)
 
 
 class CheckoutOrderAddressCreateView(GenericAPIView):
@@ -200,7 +200,7 @@ class CheckoutOrderAddressCreateView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-                {"message": "Address added to the order successfully.", "status": "succeed"},
+                {"message": "Address added to the order successfully.", "status": "success"},
                 status=status.HTTP_200_OK
         )
 
@@ -240,7 +240,7 @@ class FavoriteProductView(GenericAPIView):
 
         FavoriteProduct.objects.filter(customer=customer, product=product).delete()
 
-        return Response({"message": "Product removed from favorite list", "status": "succeed"},
+        return Response({"message": "Product removed from favorite list", "status": "success"},
                         status=status.HTTP_200_OK)
 
 
@@ -250,7 +250,7 @@ class CouponCodeView(GenericAPIView):
     @staticmethod
     def get(request):
         coupon_codes = CouponCode.objects.values('id', 'code', 'price', 'expired', 'expiry_date')
-        return Response({"message": "All coupons fetched", "data": coupon_codes, "status": "succeed"},
+        return Response({"message": "All coupons fetched", "data": coupon_codes, "status": "success"},
                         status=status.HTTP_200_OK)
 
 
@@ -282,7 +282,7 @@ class FilteredProductListView(ListAPIView):
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(queryset, many=True)
-        return Response({"message": "Products filtered successfully", "data": serializer.data, "status": "succeed"},
+        return Response({"message": "Products filtered successfully", "data": serializer.data, "status": "success"},
                         status.HTTP_200_OK)
 
 
@@ -296,7 +296,7 @@ class NotificationListView(GenericAPIView):
         else:
             notifications = Notification.objects.filter(Q(customers__in=[customer]) | Q(general=True)).values(
                     'notification_type', 'title', 'description', 'created')
-        return Response({"message": "Notifications fetched", "data": notifications, "status": "succeed"},
+        return Response({"message": "Notifications fetched", "data": notifications, "status": "success"},
                         status.HTTP_200_OK)
 
 
@@ -311,17 +311,17 @@ class OrderListView(GetOrderByTransactionRefMixin, GenericAPIView):
                 order = self._get_order_by_transaction_ref(transaction_reference, request)
                 serializer = OrderSerializer(order)
                 return Response(
-                        {"message": "Order retrieved successfully", "data": serializer.data, "status": "succeed"},
+                        {"message": "Order retrieved successfully", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)
             except Http404:
                 return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         else:
             all_orders = Order.objects.filter(customer=customer)
             if not all_orders.exists():
-                return Response({"message": "Customer has no orders", "status": "succeed"}, status=status.HTTP_200_OK)
+                return Response({"message": "Customer has no orders", "status": "success"}, status=status.HTTP_200_OK)
             serializer = OrderListSerializer(all_orders, many=True)
             return Response(
-                    {"message": "All orders retrieved successfully", "data": serializer.data, "status": "succeed"},
+                    {"message": "All orders retrieved successfully", "data": serializer.data, "status": "success"},
                     status=status.HTTP_200_OK)
 
 
@@ -334,7 +334,7 @@ class OrderDeleteView(GetOrderByTransactionRefMixin, GenericAPIView):
             return Response({"message": "Transaction reference is required."}, status=status.HTTP_400_BAD_REQUEST)
         order = self._get_order_by_transaction_ref(transaction_reference, request)
         order.delete()
-        return Response({"message": "Order deleted successfully.", "status": "succeed"},
+        return Response({"message": "Order deleted successfully.", "status": "success"},
                         status=status.HTTP_204_NO_CONTENT)
 
 
@@ -345,7 +345,7 @@ class ProductDetailView(GenericAPIView):
     def get(self, request, *args, **kwargs):
         product_id = self.kwargs.get("product_id")
         if product_id is None:
-            return Response({"message": "This field is required", "status": "succeed"},
+            return Response({"message": "This field is required", "status": "success"},
                             status=status.HTTP_400_BAD_REQUEST)
         try:
             product = Product.objects.get(id=product_id)
@@ -362,7 +362,7 @@ class ProductDetailView(GenericAPIView):
                              "product_details": product_serializer.data,
                              "related_products": related_products_serializer.data,
                              "product_reviews": product_review_serializer.data
-                         }, "status": "succeed"}, status=status.HTTP_200_OK)
+                         }, "status": "success"}, status=status.HTTP_200_OK)
 
 
 class ProductReviewCreateView(GenericAPIView):
@@ -382,7 +382,7 @@ class ProductReviewCreateView(GenericAPIView):
         product_review = ProductReview.objects.create(customer=customer, product=product, **serializer.validated_data)
         for image in images:
             ProductReviewImage.objects.create(product_review=product_review, _image=image)
-        return Response({"message": "Review created successfully", "status": "succeed"}, status.HTTP_201_CREATED)
+        return Response({"message": "Review created successfully", "status": "success"}, status.HTTP_201_CREATED)
 
 
 class VerifyPaymentView(GenericAPIView):
@@ -448,4 +448,4 @@ class VerifyPaymentView(GenericAPIView):
                 item_colour_inventory.quantity -= item.quantity
                 item_colour_inventory.save()
             item.save()
-        return Response({"message": "Payment successful", "status": "succeed"}, status=status.HTTP_200_OK)
+        return Response({"message": "Payment successful", "status": "success"}, status=status.HTTP_200_OK)
