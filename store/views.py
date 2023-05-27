@@ -240,8 +240,8 @@ class FavoriteProductView(GenericAPIView):
 
         FavoriteProduct.objects.filter(customer=customer, product=product).delete()
 
-        return Response({"message": "Product removed from favorite list", "status": "success"},
-                        status=status.HTTP_200_OK)
+        return Response({"message": "Product removed from favorites list", "status": "success"},
+                        status=status.HTTP_204_NO_CONTENT)
 
 
 class CouponCodeView(GenericAPIView):

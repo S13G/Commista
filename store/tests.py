@@ -24,18 +24,7 @@ class AuthenticationTestCase(APITestCase):
         self.code = random.randint(1000, 9999)
         self.expiry_date = timezone.now() + timedelta(minutes=15)
 
-        self.category_data = [
-            {
-                "title": "Fashion",
-                "gender": "A"
-            },
-            {
-                "title": "Toys",
-                "gender": "K"
-            }
-        ]
-        self.first_category = Category.objects.create(**self.category_data[0])
-        self.second_category = Category.objects.create(**self.category_data[1])
+        # user info
 
         self.user_data = {
             "first_name": "John",
@@ -74,6 +63,45 @@ class AuthenticationTestCase(APITestCase):
             "phone_number": "+43987377232"
         }
 
+        # Product setup
+
+        self.category_data = [
+            {
+                "title": "Fashion",
+                "gender": "A"
+            },
+            {
+                "title": "Toys",
+                "gender": "K"
+            }
+        ]
+
+        categories = []
+        for category in self.category_data:
+            self.category = Category.objects.create(**category)
+            categories.append(self.category)
+
+        # set up product data
+        self.product_data = {
+            "title": "Product 1",
+            "slug": "product-1",
+            "category": categories[0],
+            "description": "Product 1 description",
+            "style": "Product 1 style",
+            "price": 19.99,
+            "shipped_out_days": 2,
+            "shipping_fee": 5.99,
+            "inventory": 100,
+            "percentage_off": 10,
+            "condition": "N",
+            "location": "US",
+            "flash_sale_start_date": None,
+            "flash_sale_end_date": None,
+        }
+
+        # Create the product instance first
+        self.product = Product.objects.create(**self.product_data)
+
         # create colour instances
         self.colour_data = [
             {
@@ -86,8 +114,11 @@ class AuthenticationTestCase(APITestCase):
             }
         ]
 
+        colours = []
+
         for colour in self.colour_data:
-            Colour.objects.create(**colour)
+            self.colour = Colour.objects.create(**colour)
+            colours.append(self.colour)
 
         self.size_data = [
             {
@@ -101,17 +132,22 @@ class AuthenticationTestCase(APITestCase):
             }
         ]
 
+        sizes = []
+
         for size in self.size_data:
-            Size.objects.create(**size)
+            self.size = Size.objects.create(**size)
+            sizes.append(self.size)
 
         self.colour_inventory_data = [
             {
-                "colour": "Red",
+                "product": self.product,  # Set the product for the ColourInventory instance
+                "colour": colours[0],
                 "quantity": 50,
                 "extra_price": 2.99
             },
             {
-                "colour": "Blue",
+                "product": self.product,  # Set the product for the ColourInventory instance
+                "colour": colours[1],
                 "quantity": 30,
                 "extra_price": 0
             }
@@ -119,17 +155,20 @@ class AuthenticationTestCase(APITestCase):
 
         self.size_inventory_data = [
             {
-                "size": "S",
+                "product": self.product,  # Set the product for the SizeInventory instance
+                "size": sizes[0],
                 "quantity": 20,
                 "extra_price": 0
             },
             {
-                "size": "M",
+                "product": self.product,  # Set the product for the SizeInventory instance
+                "size": sizes[1],
                 "quantity": 30,
                 "extra_price": 1.99
             },
             {
-                "size": "L",
+                "product": self.product,  # Set the product for the SizeInventory instance
+                "size": sizes[2],
                 "quantity": 50,
                 "extra_price": 1.99
             }
@@ -148,40 +187,24 @@ class AuthenticationTestCase(APITestCase):
             self.size = SizeInventory.objects.create(**size_data)
             self.size_inventory.append(self.size)
 
-        self.first_product_data = {
-            "title": "Product 1",
-            "slug": "product-1",
-            "category": self.first_category,
-            "description": "Product 1 description",
-            "style": "Product 1 style",
-            "price": 19.99,
-            "shipped_out_days": 2,
-            "shipping_fee": 5.99,
-            "inventory": 100,
-            "percentage_off": 10,
-            "condition": "N",
-            "location": "United States",
-            "flash_sale_start_date": "",
-            "flash_sale_end_date": "",
-        }
-
         # Assign the related objects using set()
-        self.first_product = Product.objects.create(**self.first_product_data)
-        self.first_product.color_inventory.set(self.colour_inventory)
-        self.first_product.size_inventory.set(self.size_inventory)
+        self.product.color_inventory.set(self.colour_inventory)
+        self.product.size_inventory.set(self.size_inventory)
 
         # Add the images
         self.images = [
             {
-                "image": "store/product_images/product1_image1.jpg"
+                "product": self.product,  # Set the product for the ProductImage instance
+                "_image": "store/product_images/product1_image1.jpg"
             },
             {
-                "image": "store/product_images/product1_image2.jpg"
+                "product": self.product,  # Set the product for the ProductImage instance
+                "_image": "store/product_images/product1_image2.jpg"
             }
         ]
 
         for img_data in self.images:
-            ProductImage.objects.create(product=self.first_product, **img_data)
+            ProductImage.objects.create(**img_data)  # Use **img_data to pass the product instance
 
         self.client = APIClient()
 
@@ -298,8 +321,29 @@ class AuthenticationTestCase(APITestCase):
 
     def test_add_user_favorite_product(self):
         self._authenticate_user()
-        product_id = self.first_product.id
-        print(product_id)
+        product_id = self.product.id
         response = self.client.post(reverse_lazy("favorite_product", kwargs={"product_id": product_id}))
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertEqual(response.data['message'], "Product added to favorites")
+        self.favorite_product = product_id
+
+    def test_user_favorite_product_existing(self):
+        self.test_add_user_favorite_product()
+        existing_product = self.favorite_product
+        response = self.client.post(reverse_lazy("favorite_product", kwargs={"product_id": existing_product}))
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.data['message'], "Product already in favorites")
+
+    def test_add_user_favorite_product_invalid_id(self):
+        self._authenticate_user()
+        product_id = "25b1e9e7-9866-4c37-9a2e-853e4fe6c724"
+        response = self.client.post(reverse_lazy("favorite_product", kwargs={"product_id": product_id}))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND, response.data)
+        self.assertEqual(response.data['message'], "Invalid product id")
+
+    def test_delete_user_favorite_product(self):
+        self.test_add_user_favorite_product()
+        product_id = self.favorite_product
+        response = self.client.delete(reverse_lazy("favorite_product", kwargs={"product_id": product_id}))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT, response.data)
+        self.assertEqual(response.data['message'], "Product removed from favorites list")
