@@ -514,8 +514,7 @@ class CreateAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields = ['id', 'country', 'first_name', 'last_name', 'street_address', 'second_street_address', 'city',
-                  'state',
-                  'zip_code', 'phone_number']
+                  'state', 'zip_code', 'phone_number']
 
     def create(self, validated_data):
         customer = self.context['request'].user
