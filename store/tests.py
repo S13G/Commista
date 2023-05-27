@@ -46,6 +46,19 @@ class AuthenticationTestCase(APITestCase):
             "zip_code": "678774",
             "phone_number": "+09873778282"
         }
+
+        self.updated_data = {
+            "country": "AF",
+            "first_name": "Domino",
+            "last_name": "Daanny",
+            "street_address": "Denark ville, close to the port",
+            "second_street_address": "",
+            "city": "Austria",
+            "state": "England",
+            "zip_code": "678774",
+            "phone_number": "+43987377232"
+        }
+
         self.client = APIClient()
 
     def tearDown(self):
@@ -102,10 +115,25 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_get_specific_user_address(self):
-        self._authenticate_user()
         self.test_create_user_address()
         param = {"address_param": self.created_address}
         response = self.client.get(reverse_lazy("address"), data=param)
-        print(response, response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def _specific_user_address(self):
+        self.test_create_user_address()
+        address_id = self.created_address
+        url = reverse_lazy("address_details", kwargs={"address_id": address_id})
+        return url
+
+    def test_update_specific_user_address(self):
+        url = self._specific_user_address()
+        response = self.client.patch(url, data=self.updated_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+    def test_delete_specific_user_address(self):
+        url = self._specific_user_address()
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
 
