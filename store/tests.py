@@ -10,7 +10,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, APITestCase
 
 from core.models import Otp
-from store.models import Category, Colour, ColourInventory, Product, ProductImage, Size, SizeInventory
+from store.models import Category, Colour, ColourInventory, Notification, Product, ProductImage, ProductReview, Size, \
+    SizeInventory
+from store.serializers import ProductDetailSerializer, ProductSerializer
+from store.views import FilteredProductListView
 
 
 class AuthenticationTestCase(APITestCase):
@@ -67,25 +70,60 @@ class AuthenticationTestCase(APITestCase):
 
         self.category_data = [
             {
-                "title": "Fashion",
+                "title": "Electronics",
                 "gender": "A"
             },
             {
                 "title": "Toys",
-                "gender": "K"
+                "gender": "F"
             }
         ]
 
-        categories = []
+        self.categories = []
         for category in self.category_data:
             self.category = Category.objects.create(**category)
-            categories.append(self.category)
+            self.categories.append(self.category)
 
         # set up product data
         self.product_data = {
-            "title": "Product 1",
+            "title": "Laptop",
             "slug": "product-1",
-            "category": categories[0],
+            "category": self.categories[0],
+            "description": "Product 1 description",
+            "style": "Product 1 style",
+            "price": 19.99,
+            "shipped_out_days": 2,
+            "shipping_fee": 5.99,
+            "inventory": 100,
+            "percentage_off": 10,
+            "condition": "N",
+            "location": "US",
+            "flash_sale_start_date": None,
+            "flash_sale_end_date": None,
+        }
+
+        # create related product data
+        self.related_product_data1 = {
+            "title": "Keyboard",
+            "slug": "product-1",
+            "category": self.categories[0],
+            "description": "Product 1 description",
+            "style": "Product 1 style",
+            "price": 19.99,
+            "shipped_out_days": 2,
+            "shipping_fee": 5.99,
+            "inventory": 100,
+            "percentage_off": 10,
+            "condition": "N",
+            "location": "US",
+            "flash_sale_start_date": None,
+            "flash_sale_end_date": None,
+        }
+
+        self.related_product_data2 = {
+            "title": "Mouse",
+            "slug": "product-1",
+            "category": self.categories[0],
             "description": "Product 1 description",
             "style": "Product 1 style",
             "price": 19.99,
@@ -101,6 +139,8 @@ class AuthenticationTestCase(APITestCase):
 
         # Create the product instance first
         self.product = Product.objects.create(**self.product_data)
+        self.related_product1 = Product.objects.create(**self.related_product_data1)
+        self.related_product2 = Product.objects.create(**self.related_product_data2)
 
         # create colour instances
         self.colour_data = [
@@ -150,7 +190,19 @@ class AuthenticationTestCase(APITestCase):
                 "colour": colours[1],
                 "quantity": 30,
                 "extra_price": 0
-            }
+            },
+            {
+                "product": self.related_product1,  # Set the product for the ColourInventory instance
+                "colour": colours[1],
+                "quantity": 50,
+                "extra_price": 2.99
+            },
+            {
+                "product": self.related_product2,  # Set the product for the ColourInventory instance
+                "colour": colours[0],
+                "quantity": 50,
+                "extra_price": 2.99
+            },
         ]
 
         self.size_inventory_data = [
@@ -171,7 +223,19 @@ class AuthenticationTestCase(APITestCase):
                 "size": sizes[2],
                 "quantity": 50,
                 "extra_price": 1.99
-            }
+            },
+            {
+                "product": self.related_product1,  # Set the product for the SizeInventory instance
+                "size": sizes[0],
+                "quantity": 20,
+                "extra_price": 0
+            },
+            {
+                "product": self.related_product2,  # Set the product for the SizeInventory instance
+                "size": sizes[1],
+                "quantity": 20,
+                "extra_price": 0
+            },
         ]
 
         self.colour_inventory = []
@@ -189,7 +253,11 @@ class AuthenticationTestCase(APITestCase):
 
         # Assign the related objects using set()
         self.product.color_inventory.set(self.colour_inventory)
+        self.related_product1.color_inventory.set(self.colour_inventory)
+        self.related_product2.color_inventory.set(self.colour_inventory)
         self.product.size_inventory.set(self.size_inventory)
+        self.related_product1.size_inventory.set(self.size_inventory)
+        self.related_product2.size_inventory.set(self.size_inventory)
 
         # Add the images
         self.images = [
@@ -200,6 +268,14 @@ class AuthenticationTestCase(APITestCase):
             {
                 "product": self.product,  # Set the product for the ProductImage instance
                 "_image": "store/product_images/product1_image2.jpg"
+            },
+            {
+                "product": self.related_product1,  # Set the product for the ProductImage instance
+                "_image": "store/product_images/product1_image3.jpg"
+            },
+            {
+                "product": self.related_product2,  # Set the product for the ProductImage instance
+                "_image": "store/product_images/product1_image4.jpg"
             }
         ]
 
@@ -353,3 +429,79 @@ class AuthenticationTestCase(APITestCase):
         response = self.client.get(reverse_lazy("coupon_codes"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], "All coupons fetched")
+
+    def test_get_staff_notification(self):
+        self._authenticate_user()
+        notification1 = Notification.objects.create(notification_type='A', title='Notification 1',
+                                                    description='Description 1')
+        notification1.customers.add(self.user)
+        notification2 = Notification.objects.create(notification_type='F', title='Notification 2',
+                                                    description='Description 2')
+        notification2.customers.add(self.user)
+        notification3 = Notification.objects.create(notification_type='0', title='Notification 3',
+                                                    description='Description 3')
+        notification3.customers.add(self.user)
+        response = self.client.get(reverse_lazy('notifications'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(len(response.data['data']), 3)
+
+        notification1.delete()
+        notification2.delete()
+        notification3.delete()
+
+    def test_get_product_details(self):
+        self._authenticate_user()
+        self.review1 = ProductReview.objects.create(product=self.product, customer=self.user, ratings=5,
+                                                    description='Great product')
+        self.review2 = ProductReview.objects.create(product=self.product, customer=self.user, ratings=4,
+                                                    description='Good product')
+
+        url = reverse_lazy('product_detail', kwargs={'product_id': self.product.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+
+        # Assert the product details in the response
+        product_details = response.data['data']['product_details']
+        product_serializer = ProductDetailSerializer(instance=self.product)
+        product_details_expected = product_serializer.data
+        product_details['discount_price'] = float(product_details['discount_price'])  # Convert to float
+        self.assertEqual(product_details, product_details_expected)
+
+        # Assert the related products in the response
+        related_products = response.data['data']['related_products']
+        related_products_expected = ProductSerializer(
+                instance=self.product.category.products.exclude(id=self.product.id)[:10], many=True).data
+        related_product_ids = [product['id'] for product in related_products]
+        related_products_expected_ids = [product['id'] for product in related_products_expected]
+
+        self.assertEqual(related_product_ids, related_products_expected_ids)
+
+        # Assert the product reviews in the response
+        product_reviews = response.data['data']['product_reviews']
+
+        self.assertEqual(len(product_reviews), 2)  # Check if there are two product reviews in the response
+
+    def test_filtered_product_list(self):
+        self._authenticate_user()
+        url = reverse_lazy("products_search_and_filters")
+        data = {
+            # 'gender': 'A',  # Valid choices: 'A', 'K', 'M', 'F'
+            'title': 'lap',
+            'price': '0,1000',
+            # 'condition': 'N',  # Valid choices: 'N', 'U'
+            'location': 'US',
+        }
+        response = self.client.get(url, data)
+        print(response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Assert the response data
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(len(response.data['data']), 1)
+
+        # Assert the serialized data
+        serialized_data = FilteredProductListView.serializer_class([self.product], many=True).data
+        self.assertEqual(response.data['data'], serialized_data)
