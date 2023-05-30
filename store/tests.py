@@ -1,8 +1,10 @@
 import random
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse_lazy
 from django.utils import timezone
 from rest_framework import status
@@ -10,9 +12,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, APITestCase
 
 from core.models import Otp
-from store.models import Category, Colour, ColourInventory, Notification, Product, ProductImage, ProductReview, Size, \
-    SizeInventory
-from store.serializers import ProductDetailSerializer, ProductSerializer
+from store.models import Category, Colour, ColourInventory, Notification, Product, ProductImage, \
+    ProductReview, \
+    Size, SizeInventory
+from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductSerializer
 from store.views import FilteredProductListView
 
 
@@ -87,7 +90,6 @@ class AuthenticationTestCase(APITestCase):
         # set up product data
         self.product_data = {
             "title": "Laptop",
-            "slug": "product-1",
             "category": self.categories[0],
             "description": "Product 1 description",
             "style": "Product 1 style",
@@ -105,7 +107,6 @@ class AuthenticationTestCase(APITestCase):
         # create related product data
         self.related_product_data1 = {
             "title": "Keyboard",
-            "slug": "product-1",
             "category": self.categories[0],
             "description": "Product 1 description",
             "style": "Product 1 style",
@@ -122,7 +123,6 @@ class AuthenticationTestCase(APITestCase):
 
         self.related_product_data2 = {
             "title": "Mouse",
-            "slug": "product-1",
             "category": self.categories[0],
             "description": "Product 1 description",
             "style": "Product 1 style",
@@ -154,11 +154,11 @@ class AuthenticationTestCase(APITestCase):
             }
         ]
 
-        colours = []
+        self.colours = []
 
         for colour in self.colour_data:
             self.colour = Colour.objects.create(**colour)
-            colours.append(self.colour)
+            self.colours.append(self.colour)
 
         self.size_data = [
             {
@@ -172,34 +172,34 @@ class AuthenticationTestCase(APITestCase):
             }
         ]
 
-        sizes = []
+        self.sizes = []
 
         for size in self.size_data:
             self.size = Size.objects.create(**size)
-            sizes.append(self.size)
+            self.sizes.append(self.size)
 
         self.colour_inventory_data = [
             {
                 "product": self.product,  # Set the product for the ColourInventory instance
-                "colour": colours[0],
+                "colour": self.colours[0],
                 "quantity": 50,
                 "extra_price": 2.99
             },
             {
                 "product": self.product,  # Set the product for the ColourInventory instance
-                "colour": colours[1],
+                "colour": self.colours[1],
                 "quantity": 30,
                 "extra_price": 0
             },
             {
                 "product": self.related_product1,  # Set the product for the ColourInventory instance
-                "colour": colours[1],
+                "colour": self.colours[1],
                 "quantity": 50,
                 "extra_price": 2.99
             },
             {
                 "product": self.related_product2,  # Set the product for the ColourInventory instance
-                "colour": colours[0],
+                "colour": self.colours[0],
                 "quantity": 50,
                 "extra_price": 2.99
             },
@@ -208,31 +208,31 @@ class AuthenticationTestCase(APITestCase):
         self.size_inventory_data = [
             {
                 "product": self.product,  # Set the product for the SizeInventory instance
-                "size": sizes[0],
+                "size": self.sizes[0],
                 "quantity": 20,
                 "extra_price": 0
             },
             {
                 "product": self.product,  # Set the product for the SizeInventory instance
-                "size": sizes[1],
+                "size": self.sizes[1],
                 "quantity": 30,
                 "extra_price": 1.99
             },
             {
                 "product": self.product,  # Set the product for the SizeInventory instance
-                "size": sizes[2],
+                "size": self.sizes[2],
                 "quantity": 50,
                 "extra_price": 1.99
             },
             {
                 "product": self.related_product1,  # Set the product for the SizeInventory instance
-                "size": sizes[0],
+                "size": self.sizes[0],
                 "quantity": 20,
                 "extra_price": 0
             },
             {
                 "product": self.related_product2,  # Set the product for the SizeInventory instance
-                "size": sizes[1],
+                "size": self.sizes[1],
                 "quantity": 20,
                 "extra_price": 0
             },
@@ -495,7 +495,6 @@ class AuthenticationTestCase(APITestCase):
             'location': 'US',
         }
         response = self.client.get(url, data)
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Assert the response data
@@ -505,3 +504,142 @@ class AuthenticationTestCase(APITestCase):
         # Assert the serialized data
         serialized_data = FilteredProductListView.serializer_class([self.product], many=True).data
         self.assertEqual(response.data['data'], serialized_data)
+
+    def test_create_product_review(self):
+        self._authenticate_user()
+        url = reverse_lazy('add_product_review')
+        data = {
+            'product_id': str(self.product.id),
+            'ratings': 5,
+            'description': 'Great product!',
+        }
+
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(response.data['message'], 'Review created successfully')
+
+        # Verify that the review was created
+        self.assertTrue(ProductReview.objects.filter(product=self.product, customer=self.user).exists())
+
+    def test_create_product_review_with_images(self):
+        self._authenticate_user()
+        url = reverse_lazy('add_product_review')
+        data = {
+            'product_id': str(self.product.id),
+            'ratings': 4,
+            'description': 'Good product!',
+        }
+        # Create image files
+        image1 = SimpleUploadedFile('image1.jpg', content=b'Image 1')
+        image2 = SimpleUploadedFile('image2.jpg', content=b'Image 2')
+
+        response = self.client.post(url, data, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(response.data['message'], 'Review created successfully')
+
+        # Verify that the review and images were created
+        product_review = ProductReview.objects.get(product=self.product, customer=self.user)
+        self.assertEqual(product_review.product_review_images.count(), 2)
+        self.assertTrue(product_review.product_review_images.filter(_image=image1.name).exists())
+        self.assertTrue(product_review.product_review_images.filter(_image=image2.name).exists())
+
+    def test_valid_serializer_data(self):
+        self._authenticate_user()
+        serializer = AddProductReviewSerializer(data={
+            'product_id': str(self.product.id),
+            'ratings': 5,
+            'description': 'Great product!',
+        })
+
+        self.assertTrue(serializer.is_valid())
+
+    def test_serializer_with_invalid_product_id(self):
+        self._authenticate_user()
+        serializer = AddProductReviewSerializer(data={
+            'product_id': 'invalid-product-id',
+            'ratings': 5,
+            'description': 'Great product!',
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('product_id', serializer.errors)
+        self.assertEqual(serializer.errors['product_id'][0].code, 'invalid')
+        self.assertEqual(serializer.errors['product_id'][0], 'Must be a valid UUID.')
+
+    def test_add_cart_item(self):
+        self._authenticate_user()
+
+        data = {
+            'product_id': self.product.id,
+            # 'size': 'M',
+            # 'colour': 'Red',
+            'quantity': 2,
+        }
+        response = self.client.post(reverse_lazy('cart_items'), data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(response.data['message'], 'Cart item added successfully')
+
+        # Retrieve the cart_id from the response
+        cart_id = response.data['data']['cart_id']
+
+        return cart_id  # Return the cart_id for use in the update test
+
+    def test_update_cart_item(self):
+        cart_id = self.test_add_cart_item()
+
+        data = {
+            'cart_id': cart_id,
+            'product_id': self.product.id,
+            # 'colour': '',
+            # 'size': '',
+        }
+
+        response = self.client.patch(reverse_lazy('cart_items'), data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(response.data['message'], 'Cart item updated successfully')
+
+    def test_delete_cart_item(self):
+        cart_id = self.test_add_cart_item()
+        data = {
+            'cart_id': str(cart_id),
+            'product_id': str(self.product.id)
+        }
+        response = self.client.delete(reverse_lazy('cart_items'), data)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(response.data['message'], 'Item deleted successfully.')
+
+    def test_get_cart_items(self):
+        cart_id = self.test_add_cart_item()
+
+        response = self.client.get(reverse_lazy('list_cart_items', kwargs={"cart_id": cart_id}))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertEqual(response.data['message'], 'Cart items retrieved successfully')
+        expected_cart_total = Decimal('0.00')
+        for item in response.data['data']:
+            product_price = Decimal(str(item['product']['price']))
+            quantity = item['quantity']
+            if item['discount_price'] > 0:
+                discount_price = item['discount_price']
+                subtotal = discount_price * quantity
+            else:
+                subtotal = product_price * quantity
+
+            # Add the subtotal to the cart total
+            expected_cart_total += subtotal
+            print(expected_cart_total)
+            # Round the expected cart total to 2 decimal places
+        expected_cart_total = expected_cart_total.quantize(Decimal('0.00'))
+        print(expected_cart_total)
+
+        self.assertEqual(response.data['cart_total'], expected_cart_total)
+        self.assertEqual(len(response.data['data']), 2)
+        self.assertEqual(response.data['data'][0]['product']['title'], self.product.title)
+        self.assertEqual(response.data['data'][0]['quantity'], 2)
+        self.assertEqual(response.data['data'][1]['product']['title'], self.related_product1.title)
+        self.assertEqual(response.data['data'][1]['quantity'], 3)
