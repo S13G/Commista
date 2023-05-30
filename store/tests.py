@@ -525,14 +525,16 @@ class AuthenticationTestCase(APITestCase):
     def test_create_product_review_with_images(self):
         self._authenticate_user()
         url = reverse_lazy('add_product_review')
+        # Create image files
+        image1 = SimpleUploadedFile('image1.jpg', content=b'Image 1')
+        image2 = SimpleUploadedFile('image2.jpg', content=b'Image 2')
+
         data = {
             'product_id': str(self.product.id),
             'ratings': 4,
             'description': 'Good product!',
+            'images': [image1, image2]
         }
-        # Create image files
-        image1 = SimpleUploadedFile('image1.jpg', content=b'Image 1')
-        image2 = SimpleUploadedFile('image2.jpg', content=b'Image 2')
 
         response = self.client.post(url, data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -583,15 +585,13 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.data['message'], 'Cart item added successfully')
 
         # Retrieve the cart_id from the response
-        cart_id = response.data['data']['cart_id']
-
-        return cart_id  # Return the cart_id for use in the update test
+        self.cart_id = response.data['data']['cart_id']
 
     def test_update_cart_item(self):
-        cart_id = self.test_add_cart_item()
+        self.test_add_cart_item()
 
         data = {
-            'cart_id': cart_id,
+            'cart_id': self.cart_id,
             'product_id': self.product.id,
             # 'colour': '',
             # 'size': '',
@@ -603,9 +603,9 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.data['message'], 'Cart item updated successfully')
 
     def test_delete_cart_item(self):
-        cart_id = self.test_add_cart_item()
+        self.test_add_cart_item()
         data = {
-            'cart_id': str(cart_id),
+            'cart_id': str(self.cart_id),
             'product_id': str(self.product.id)
         }
         response = self.client.delete(reverse_lazy('cart_items'), data)
@@ -614,9 +614,9 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.data['message'], 'Item deleted successfully.')
 
     def test_get_cart_items(self):
-        cart_id = self.test_add_cart_item()
+        self.test_add_cart_item()
 
-        response = self.client.get(reverse_lazy('list_cart_items', kwargs={"cart_id": cart_id}))
+        response = self.client.get(reverse_lazy('list_cart_items', kwargs={"cart_id": self.cart_id}))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'success')
         self.assertEqual(response.data['message'], 'Cart items retrieved successfully')
