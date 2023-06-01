@@ -201,7 +201,7 @@ class ProductReview(BaseModel):
 
 class ProductReviewImage(models.Model):
     product_review = models.ForeignKey(
-            ProductReview, on_delete=models.CASCADE, related_name="product_review_images"
+            ProductReview, on_delete=models.CASCADE, related_name="images"
     )
     _image = models.ImageField(upload_to='store/review_images', validators=[validate_image_size])
 
