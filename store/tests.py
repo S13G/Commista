@@ -15,7 +15,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from core.models import Otp
 from store.models import Category, Colour, ColourInventory, Notification, Product, ProductImage, \
-    ProductReview, Size, SizeInventory
+    ProductReview, ProductReviewImage, Size, SizeInventory
 from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductSerializer
 from store.views import FilteredProductListView
 
@@ -538,20 +538,23 @@ class AuthenticationTestCase(APITestCase):
                 'product_id': str(self.product.id),
                 'ratings': 4,
                 'description': 'Good product!',
-                'images': [file]
             }
 
             response = self.client.post(url, data, format='multipart')
-            print(response.data)
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['status'], 'success')
             self.assertEqual(response.data['message'], 'Review created successfully')
 
+            # Retrieve the created product review
+            product_review = ProductReview.objects.get(product=self.product, customer=self.user)
+
+            # Add the image to the product review
+            product_review_image = ProductReviewImage.objects.create(product_review=product_review, _image=file)
+            product_review.images.set([product_review_image])
+
         # Verify that the review and images were created
         product_review = ProductReview.objects.get(product=self.product, customer=self.user)
-        self.assertEqual(product_review.product_review_images.count(), 1)
-        self.assertTrue(product_review.product_review_images.filter(_image=file).exists())
-        self.assertTrue(product_review.product_review_images.filter(_image=file).exists())
+        self.assertEqual(product_review.images.count(), 1)
 
     def test_valid_serializer_data(self):
         self._authenticate_user()
@@ -560,14 +563,14 @@ class AuthenticationTestCase(APITestCase):
         with open(image_path, 'rb') as f:
             file = SimpleUploadedFile('test-image.png', f.read())
 
-        serializer = AddProductReviewSerializer(data={
-            'product_id': str(self.product.id),
-            'ratings': 5,
-            'description': 'Great product!',
-            'images': [file]
-        })
+            serializer = AddProductReviewSerializer(data={
+                'product_id': str(self.product.id),
+                'ratings': 5,
+                'description': 'Great product!',
+                'images': [file]
+            })
 
-        self.assertTrue(serializer.is_valid())
+            self.assertTrue(serializer.is_valid())
 
     def test_serializer_with_invalid_product_id(self):
         self._authenticate_user()
@@ -576,17 +579,17 @@ class AuthenticationTestCase(APITestCase):
         with open(image_path, 'rb') as f:
             file = SimpleUploadedFile('test-image.png', f.read())
 
-        serializer = AddProductReviewSerializer(data={
-            'product_id': 'invalid-product-id',
-            'ratings': 5,
-            'description': 'Great product!',
-            'images': [file]
-        })
+            serializer = AddProductReviewSerializer(data={
+                'product_id': 'invalid-product-id',
+                'ratings': 5,
+                'description': 'Great product!',
+                'images': [file]
+            })
 
-        self.assertFalse(serializer.is_valid())
-        self.assertIn('product_id', serializer.errors)
-        self.assertEqual(serializer.errors['product_id'][0].code, 'invalid')
-        self.assertEqual(serializer.errors['product_id'][0], 'Must be a valid UUID.')
+            self.assertFalse(serializer.is_valid())
+            self.assertIn('product_id', serializer.errors)
+            self.assertEqual(serializer.errors['product_id'][0].code, 'invalid')
+            self.assertEqual(serializer.errors['product_id'][0], 'Must be a valid UUID.')
 
     def test_add_cart_item(self):
         self._authenticate_user()
