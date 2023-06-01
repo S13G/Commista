@@ -555,6 +555,8 @@ class AuthenticationTestCase(APITestCase):
         # Verify that the review and images were created
         product_review = ProductReview.objects.get(product=self.product, customer=self.user)
         self.assertEqual(product_review.images.count(), 1)
+        for image in product_review.images.all():
+            image.delete()
 
     def test_valid_serializer_data(self):
         self._authenticate_user()
