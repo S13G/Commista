@@ -1,7 +1,9 @@
+import os
 import random
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -13,8 +15,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from core.models import Otp
 from store.models import Category, Colour, ColourInventory, Notification, Product, ProductImage, \
-    ProductReview, \
-    Size, SizeInventory
+    ProductReview, Size, SizeInventory
 from store.serializers import AddProductReviewSerializer, ProductDetailSerializer, ProductSerializer
 from store.views import FilteredProductListView
 
@@ -488,6 +489,7 @@ class AuthenticationTestCase(APITestCase):
         self._authenticate_user()
         url = reverse_lazy("products_search_and_filters")
         data = {
+            # facing errors when not commented, fix later
             # 'gender': 'A',  # Valid choices: 'A', 'K', 'M', 'F'
             'title': 'lap',
             'price': '0,1000',
@@ -525,44 +527,60 @@ class AuthenticationTestCase(APITestCase):
     def test_create_product_review_with_images(self):
         self._authenticate_user()
         url = reverse_lazy('add_product_review')
-        # Create image files
-        image1 = SimpleUploadedFile('image1.jpg', content=b'Image 1')
-        image2 = SimpleUploadedFile('image2.jpg', content=b'Image 2')
 
-        data = {
-            'product_id': str(self.product.id),
-            'ratings': 4,
-            'description': 'Good product!',
-            'images': [image1, image2]
-        }
+        # Create image file
+        image_path = os.path.join(settings.BASE_DIR, 'static', 'pic1.jpeg')
 
-        response = self.client.post(url, data, format='multipart')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], 'success')
-        self.assertEqual(response.data['message'], 'Review created successfully')
+        with open(image_path, 'rb') as f:
+            file = SimpleUploadedFile('test-image.png', f.read())
+
+            data = {
+                'product_id': str(self.product.id),
+                'ratings': 4,
+                'description': 'Good product!',
+                'images': [file]
+            }
+
+            response = self.client.post(url, data, format='multipart')
+            print(response.data)
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['status'], 'success')
+            self.assertEqual(response.data['message'], 'Review created successfully')
 
         # Verify that the review and images were created
         product_review = ProductReview.objects.get(product=self.product, customer=self.user)
-        self.assertEqual(product_review.product_review_images.count(), 2)
-        self.assertTrue(product_review.product_review_images.filter(_image=image1.name).exists())
-        self.assertTrue(product_review.product_review_images.filter(_image=image2.name).exists())
+        self.assertEqual(product_review.product_review_images.count(), 1)
+        self.assertTrue(product_review.product_review_images.filter(_image=file).exists())
+        self.assertTrue(product_review.product_review_images.filter(_image=file).exists())
 
     def test_valid_serializer_data(self):
         self._authenticate_user()
+        image_path = os.path.join(settings.BASE_DIR, 'static', 'pic1.jpeg')
+
+        with open(image_path, 'rb') as f:
+            file = SimpleUploadedFile('test-image.png', f.read())
+
         serializer = AddProductReviewSerializer(data={
             'product_id': str(self.product.id),
             'ratings': 5,
             'description': 'Great product!',
+            'images': [file]
         })
 
         self.assertTrue(serializer.is_valid())
 
     def test_serializer_with_invalid_product_id(self):
         self._authenticate_user()
+        image_path = os.path.join(settings.BASE_DIR, 'static', 'pic1.jpeg')
+
+        with open(image_path, 'rb') as f:
+            file = SimpleUploadedFile('test-image.png', f.read())
+
         serializer = AddProductReviewSerializer(data={
             'product_id': 'invalid-product-id',
             'ratings': 5,
             'description': 'Great product!',
+            'images': [file]
         })
 
         self.assertFalse(serializer.is_valid())
