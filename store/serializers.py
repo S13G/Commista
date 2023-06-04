@@ -112,9 +112,12 @@ class ProductSerializer(serializers.ModelSerializer):
             "style",
             "price",
             "percentage_off",
+            "discount_price",
+            "shipping_fee",
             "images",
             "colours",
             "sizes",
+            "shipped_out_days",
         ]
 
     @staticmethod
@@ -468,16 +471,14 @@ class CheckoutSerializer(serializers.Serializer):
                         {"message": "Order has already been checked out. Make a different order", "status": "failed"})
 
             order.transaction_ref = f"TR-{transaction_ref}"
-            print(order.all_total_price)
             order.all_total_price - coupon_discount
-            print(order.all_total_price)
             order.save()
 
         return order
 
     def to_representation(self, instance: Order):
         items = instance.order_items.values_list(
-                "id", "product__id", "product__title", "quantity", "product__shipping_fee"
+                "id", "product__id", "product__title", "quantity", "product__shipping_fee", "product__shipped_out_days"
         )
         return {
             "id": instance.id,
@@ -495,7 +496,8 @@ class CheckoutSerializer(serializers.Serializer):
                     "product_id": item[1],
                     "product__title": item[2],
                     "quantity": item[3],
-                    "shipping_fee": item[4]
+                    "shipping_fee": item[4],
+                    "shipped_out_days": item[5]
                 }
                 for item in items
             ],

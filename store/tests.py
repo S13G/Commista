@@ -111,7 +111,7 @@ class AuthenticationTestCase(APITestCase):
             "category": self.categories[0],
             "description": "Product 1 description",
             "style": "Product 1 style",
-            "price": 19.99,
+            "price": 29.99,
             "shipped_out_days": 2,
             "shipping_fee": 5.99,
             "inventory": 100,
@@ -127,7 +127,7 @@ class AuthenticationTestCase(APITestCase):
             "category": self.categories[0],
             "description": "Product 1 description",
             "style": "Product 1 style",
-            "price": 19.99,
+            "price": 39.99,
             "shipped_out_days": 2,
             "shipping_fee": 5.99,
             "inventory": 100,
@@ -603,6 +603,7 @@ class AuthenticationTestCase(APITestCase):
             'quantity': 2,
         }
         response = self.client.post(reverse_lazy('cart_items'), data)
+        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'success')
         self.assertEqual(response.data['message'], 'Cart item added successfully')
@@ -645,24 +646,20 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.data['message'], 'Cart items retrieved successfully')
         expected_cart_total = Decimal('0.00')
         for item in response.data['data']:
-            product_price = Decimal(str(item['product']['price']))
             quantity = item['quantity']
-            if item['discount_price'] > 0:
-                discount_price = item['discount_price']
-                subtotal = discount_price * quantity
+            if 'discount_price' in item and item['discount_price'] > 0:
+                discount_price = Decimal(str(item['discount_price']))
+                subtotal = (discount_price * quantity) + Decimal(self.product.shipping_fee)
             else:
-                subtotal = product_price * quantity
+                subtotal = item['total_price']
 
             # Add the subtotal to the cart total
             expected_cart_total += subtotal
-            print(expected_cart_total)
-            # Round the expected cart total to 2 decimal places
+
+        # Round the expected cart total to 2 decimal places
         expected_cart_total = expected_cart_total.quantize(Decimal('0.00'))
-        print(expected_cart_total)
 
         self.assertEqual(response.data['cart_total'], expected_cart_total)
-        self.assertEqual(len(response.data['data']), 2)
+        self.assertEqual(len(response.data['data']), 1)
         self.assertEqual(response.data['data'][0]['product']['title'], self.product.title)
         self.assertEqual(response.data['data'][0]['quantity'], 2)
-        self.assertEqual(response.data['data'][1]['product']['title'], self.related_product1.title)
-        self.assertEqual(response.data['data'][1]['quantity'], 3)

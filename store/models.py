@@ -306,8 +306,9 @@ class OrderItem(BaseModel):
     def total_price(self):
         extra_price = self.extra_price
         if float(self.product.discount_price) > 0:
-            return self.quantity * (self.product.discount_price + self.product.shipping_fee + extra_price)
-        return self.quantity * (self.product.price + self.product.shipping_fee + extra_price)
+            return (self.quantity * (self.product.discount_price + extra_price)) + self.product.shipping_fee
+        return (self.quantity * (
+                    self.product.price + self.product.shipping_fee + extra_price)) + self.product.shipping_fee
 
 
 class Address(BaseModel):

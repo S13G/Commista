@@ -411,15 +411,22 @@ class VerifyPaymentView(GenericAPIView):
             response_data = response.get('data')
             response_status = response_data.get('status')
         except Exception as e:
-            return Response({"message": str(e), "status": "failed"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                    {"message": f"Payment verification failed. Please make a payment. {e}", "status": "failed"},
+                    status=status.HTTP_400_BAD_REQUEST)
         if response_status != 'successful':
             order.payment_status = PAYMENT_FAILED
             order.save()
             return Response({"message": "Payment failed", "status": "failed"},
                             status=status.HTTP_417_EXPECTATION_FAILED)
         response_amount = response_data.get('charged_amount')
-        if order.all_total_price > response_amount:
-            return Response({"message": "Invalid payment", "status": "failed"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        if response_amount is None:
+            return Response({"message": "Invalid payment amount", "status": "failed"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if float(order.all_total_price) > float(response_amount):
+            return Response({"message": "Invalid payment amount. Please make a payment with the correct amount.",
+                             "status": "failed"}, status=status.HTTP_406_NOT_ACCEPTABLE)
         order.payment_status = PAYMENT_COMPLETE
         order.shipping_status = SHIPPING_STATUS_PROCESSING
         order.save()
