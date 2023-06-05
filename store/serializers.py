@@ -240,15 +240,25 @@ class AddCartItemSerializer(serializers.Serializer):
 
         extra_price = 0
         if size:
-            size_inv = get_object_or_404(SizeInventory, size__title__iexact=size, product=product)
+            size_inv = SizeInventory.objects.filter(size__title__iexact=size, product=product).first()
+
+            if not size_inv:
+                raise ValidationError({"message": "Size for this product does not exist", "status": "failed"})
+
             if size_inv.quantity <= 0:
                 raise ValidationError({"message": "Size for this product is out of stock", "status": "failed"})
+
             extra_price += size_inv.extra_price
 
         if colour:
-            colour_inv = get_object_or_404(ColourInventory, colour__name__iexact=colour, product=product)
+            colour_inv = ColourInventory.objects.filter(colour__name__iexact=colour, product=product).first()
+
+            if not colour_inv:
+                raise ValidationError({"message": "Colour for this product does not exist", "status": "failed"})
+
             if colour_inv.quantity <= 0:
                 raise ValidationError({"message": "Colour for this product is out of stock", "status": "failed"})
+
             extra_price += colour_inv.extra_price
 
         cart_item = cart.order_items.filter(product=product, size=size, colour=colour).first()
@@ -325,27 +335,48 @@ class UpdateCartItemSerializer(serializers.Serializer):
 
         return item
 
-    @staticmethod
-    def determine_extra_price(cart_item):
+    def determine_extra_price(self, cart_item):
         total_extra_price = 0
 
         if cart_item.colour:
             try:
-                colour_obj = ColourInventory.objects.get(
-                        colour__name__iexact=cart_item.colour, product=cart_item.product
-                )
-                total_extra_price += colour_obj.extra_price
-            except ColourInventory.DoesNotExist:
-                pass
+                colour_obj = ColourInventory.objects.filter(
+                        colour__name__iexact=cart_item.colour,
+                        product=cart_item.product
+                ).first()
+
+                if colour_obj:
+                    total_extra_price += colour_obj.extra_price
+
+            except ColourInventory.MultipleObjectsReturned:
+                # Multiple ColourInventory objects found, select the first one
+                colour_obj = ColourInventory.objects.filter(
+                        colour__name__iexact=cart_item.colour,
+                        product=cart_item.product
+                ).first()
+
+                if colour_obj:
+                    total_extra_price += colour_obj.extra_price
 
         if cart_item.size:
             try:
-                size_obj = SizeInventory.objects.get(
-                        size__title__iexact=cart_item.size, product=cart_item.product
-                )
-                total_extra_price += size_obj.extra_price
-            except SizeInventory.DoesNotExist:
-                pass
+                size_obj = SizeInventory.objects.filter(
+                        size__title__iexact=cart_item.size,
+                        product=cart_item.product
+                ).first()
+
+                if size_obj:
+                    total_extra_price += size_obj.extra_price
+
+            except SizeInventory.MultipleObjectsReturned:
+                # Multiple SizeInventory objects found, select the first one
+                size_obj = SizeInventory.objects.filter(
+                        size__title__iexact=cart_item.size,
+                        product=cart_item.product
+                ).first()
+
+                if size_obj:
+                    total_extra_price += size_obj.extra_price
 
         return total_extra_price
 

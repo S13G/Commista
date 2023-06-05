@@ -260,8 +260,6 @@ class AuthenticationTestCase(APITestCase):
             size_inventory_obj.save()
             size_inventory_objects.append(size_inventory_obj)
 
-        print(self.product.color_inventory)
-
         # Add the images
         self.images = [
             {
@@ -605,7 +603,6 @@ class AuthenticationTestCase(APITestCase):
             'quantity': 2,
         }
         response = self.client.post(reverse_lazy('cart_items'), data)
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'success')
         self.assertEqual(response.data['message'], 'Cart item added successfully')
@@ -619,8 +616,8 @@ class AuthenticationTestCase(APITestCase):
         data = {
             'cart_id': self.cart_id,
             'product_id': self.product.id,
-            # 'colour': '',
-            # 'size': '',
+            'colour': 'Blue',
+            'size': 'S',
         }
 
         response = self.client.patch(reverse_lazy('cart_items'), data)
@@ -651,7 +648,8 @@ class AuthenticationTestCase(APITestCase):
             quantity = item['quantity']
             if 'discount_price' in item and item['discount_price'] > 0:
                 discount_price = Decimal(str(item['discount_price']))
-                subtotal = (discount_price * quantity) + Decimal(self.product.shipping_fee)
+                extra_price = Decimal(str(item['extra_price']))
+                subtotal = ((extra_price + discount_price) * quantity) + Decimal(self.product.shipping_fee)
             else:
                 subtotal = item['total_price']
 
