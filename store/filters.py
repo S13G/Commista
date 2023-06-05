@@ -1,5 +1,7 @@
 from django_filters.rest_framework import FilterSet, filters
 
+from store.models import Product
+
 
 class ProductFilter(FilterSet):
     gender = filters.ChoiceFilter(field_name='category__gender', lookup_expr='exact')

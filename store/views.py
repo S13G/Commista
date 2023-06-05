@@ -307,14 +307,14 @@ class OrderListView(GetOrderByTransactionRefMixin, GenericAPIView):
         transaction_reference = self.request.query_params.get('transaction_ref')
         customer = self.request.user
         if transaction_reference:
-            try:
-                order = self._get_order_by_transaction_ref(transaction_reference, request)
-                serializer = OrderSerializer(order)
-                return Response(
-                        {"message": "Order retrieved successfully", "data": serializer.data, "status": "success"},
-                        status=status.HTTP_200_OK)
-            except Http404:
+            order = self._get_order_by_transaction_ref(transaction_reference, request)
+            if order is None:
                 return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+            serializer = OrderSerializer(order)
+            return Response(
+                    {"message": "Order retrieved successfully", "data": serializer.data, "status": "success"},
+                    status=status.HTTP_200_OK)
+
         else:
             all_orders = Order.objects.filter(customer=customer)
             if not all_orders.exists():
@@ -333,6 +333,8 @@ class OrderDeleteView(GetOrderByTransactionRefMixin, GenericAPIView):
         if not transaction_reference:
             return Response({"message": "Transaction reference is required."}, status=status.HTTP_400_BAD_REQUEST)
         order = self._get_order_by_transaction_ref(transaction_reference, request)
+        if order is None:
+            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
         order.delete()
         return Response({"message": "Order deleted successfully.", "status": "success"},
                         status=status.HTTP_204_NO_CONTENT)

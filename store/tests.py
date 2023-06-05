@@ -16,7 +16,8 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient, APITestCase
 
 from core.models import Otp
-from store.choices import PAYMENT_COMPLETE, PAYMENT_FAILED, SHIPPING_STATUS_PENDING, SHIPPING_STATUS_PROCESSING
+from store.choices import GENDER_ALL, PAYMENT_COMPLETE, PAYMENT_FAILED, SHIPPING_STATUS_PENDING, \
+    SHIPPING_STATUS_PROCESSING
 from store.models import Address, Category, Colour, ColourInventory, CouponCode, Notification, Order, Product, \
     ProductImage, ProductReview, ProductReviewImage, Size, SizeInventory
 from store.serializers import AddProductReviewSerializer, OrderListSerializer, OrderSerializer, ProductDetailSerializer, \
@@ -494,13 +495,14 @@ class AuthenticationTestCase(APITestCase):
         url = reverse_lazy("products_search_and_filters")
         data = {
             # facing errors when not commented, fix later
-            # 'gender': 'A',  # Valid choices: 'A', 'K', 'M', 'F'
+            'gender': GENDER_ALL,  # Valid choices: 'A', 'K', 'M', 'F'
             'title': 'lap',
             'price': '0,1000',
-            # 'condition': 'N',  # Valid choices: 'N', 'U'
+            'condition': 'N',  # Valid choices: 'N', 'U'
             'location': 'US',
         }
         response = self.client.get(url, data)
+        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Assert the response data
@@ -747,14 +749,13 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.data["data"], serializer.data)
         self.assertEqual(response.data["status"], "success")
 
-    # fix issue with serializer
-    # def test_get_order_by_transaction_ref_not_found(self):
-    #     self._authenticate_user()
-    #     param = {"transaction_ref": "TR-123"}
-    #     response = self.client.get(reverse_lazy("list_order"), data=param)
-    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-    #     self.assertEqual(response.data["message"], "Order not found")
-    #     self.assertEqual(response.data["status"], "failed")
+    def test_get_order_by_transaction_ref_not_found(self):
+        self._authenticate_user()
+        param = {"transaction_ref": "TR-123"}
+        response = self.client.get(reverse_lazy("list_order"), data=param)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["message"], "Order not found")
+        self.assertEqual(response.data["status"], "failed")
 
     def test_get_all_orders(self):
         self.test_checkout_with_coupon()
@@ -781,14 +782,13 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.data["status"], "success")
         self.assertFalse(Order.objects.filter(customer=self.user, transaction_ref=self.order.transaction_ref).exists())
 
-    # fix too
-    # def test_delete_order_not_found(self):
-    #     self.test_checkout_with_coupon()
-    #     url = reverse_lazy("delete_order", kwargs={"transaction_ref": "TR-123"})
-    #     response = self.client.delete(url)
-    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-    #     self.assertEqual(response.data["message"], "Order not found")
-    #     self.assertEqual(response.data["status"], "failed")
+    def test_delete_order_not_found(self):
+        self.test_checkout_with_coupon()
+        url = reverse_lazy("delete_order", kwargs={"transaction_ref": "TR-123"})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["message"], "Order not found")
+        self.assertEqual(response.data["status"], "failed")
 
     def test_verify_payment_success(self):
         self.test_add_checkout_order_address()

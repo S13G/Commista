@@ -11,7 +11,7 @@ class GetOrderByTransactionRefMixin:
     def _get_order_by_transaction_ref(transaction_reference, request):
         customer = request.user
         try:
-            order = get_object_or_404(Order, customer=customer, transaction_ref=transaction_reference)
-        except Http404:
-            return Response({"message": "Order not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
+            order = Order.objects.get(customer=customer, transaction_ref=transaction_reference)
+        except Order.DoesNotExist:
+            return None
         return order
