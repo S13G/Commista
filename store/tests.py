@@ -59,7 +59,7 @@ class AuthenticationTestCase(APITestCase):
             "second_street_address": "",
             "city": "America",
             "state": "United States",
-            "zip_code": "678774",
+            "zip_code": "67877",
             "phone_number": "+09873778282"
         }
 
@@ -71,7 +71,7 @@ class AuthenticationTestCase(APITestCase):
             "second_street_address": "",
             "city": "Austria",
             "state": "England",
-            "zip_code": "678774",
+            "zip_code": "67877",
             "phone_number": "+43987377232"
         }
 
@@ -502,7 +502,6 @@ class AuthenticationTestCase(APITestCase):
             'location': 'US',
         }
         response = self.client.get(url, data)
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Assert the response data

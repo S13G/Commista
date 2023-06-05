@@ -265,7 +265,9 @@ class FavoriteProductsListView(GenericAPIView):
                             status=status.HTTP_400_BAD_REQUEST)
         favorite_products = FavoriteProduct.objects.filter(customer=customer) \
             .select_related('product') \
-            .prefetch_related('product__color_inventory__colour', 'product__size_inventory__size', 'product__images')
+            .prefetch_related('product__color_inventory__colour',
+                              'product__size_inventory__size',
+                              'product__images')
         serializer = self.serializer_class(favorite_products, many=True)
         return Response({"message": "All favorite products fetched", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)

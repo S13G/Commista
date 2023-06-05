@@ -3,11 +3,13 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django_countries.fields import CountryField
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from store.models import Address, Colour, ColourInventory, CouponCode, FavoriteProduct, Order, OrderItem, Product, \
-    ProductImage, ProductReview, Size, SizeInventory
+from store.choices import PAYMENT_STATUS, RATING_CHOICES, SHIPPING_STATUS_CHOICES
+from store.models import Address, Colour, ColourInventory, CouponCode, Order, OrderItem, Product, \
+    ProductImage, Size, SizeInventory
 
 
 class AddCheckoutOrderAddressSerializer(serializers.Serializer):
@@ -55,153 +57,116 @@ class AddCheckoutOrderAddressSerializer(serializers.Serializer):
         return order
 
 
-class ColourSerializer(serializers.ModelSerializer):
+class ColourSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    hex_code = serializers.CharField()
+
     class Meta:
         model = Colour
-        fields = ["name", "hex_code"]
 
 
-class ColourInventorySerializer(serializers.ModelSerializer):
+class ColourInventorySerializer(serializers.Serializer):
     colour = ColourSerializer()
+    quantity = serializers.IntegerField()
+    extra_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
 
     class Meta:
         model = ColourInventory
-        fields = ["colour", "quantity", "extra_price"]
 
 
-class SizeSerializer(serializers.ModelSerializer):
+class SizeSerializer(serializers.Serializer):
+    title = serializers.CharField()
+
     class Meta:
         model = Size
-        fields = ["title"]
 
 
-class SizeInventorySerializer(serializers.ModelSerializer):
+class SizeInventorySerializer(serializers.Serializer):
     size = SizeSerializer()
+    quantity = serializers.IntegerField()
+    extra_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
 
     class Meta:
         model = SizeInventory
-        fields = ["size", "quantity", "extra_price"]
 
 
-class ProductImageSerializer(serializers.ModelSerializer):
+class ProductImageSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    _image = serializers.ImageField()
+
     class Meta:
         model = ProductImage
-        fields = ["id", "image"]
+
+    def validate__image(self, attrs):
+        image = attrs.get('_image')
+        max_size = 3 * 1024 * 1024  # 3MB in bytes
+        if image.size > max_size:
+            raise ValidationError({"message": f"Image {image} size should be less than 3MB", "status": "failed"})
+        return attrs
 
 
-class SimpleProductSerializer(serializers.ModelSerializer):
+class SimpleProductSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
     images = ProductImageSerializer(many=True)
 
     class Meta:
         model = Product
-        fields = ["id", "title", "price", "images"]
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    sizes = SizeInventorySerializer(source="size_inventory", many=True, read_only=True)
-    colours = ColourInventorySerializer(
-            source="color_inventory", many=True, read_only=True
-    )
+class ProductSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    slug = serializers.SlugField()
+    category = serializers.CharField(source="category.title")
+    description = serializers.CharField()
+    style = serializers.CharField()
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
+    percentage_off = serializers.IntegerField()
+    discount_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
     images = serializers.SerializerMethodField()
+    sizes = SizeInventorySerializer(many=True, read_only=True)
+    colours = ColourInventorySerializer(many=True, read_only=True)
+    shipped_out_days = serializers.IntegerField()
 
     class Meta:
         model = Product
-        fields = [
-            "id",
-            "title",
-            "slug",
-            "category",
-            "description",
-            "style",
-            "price",
-            "percentage_off",
-            "discount_price",
-            "shipping_fee",
-            "images",
-            "colours",
-            "sizes",
-            "shipped_out_days",
-        ]
 
-    @staticmethod
-    def get_images(obj: Product):
+    def get_images(self, obj: Product):
         return [image.image for image in obj.images.all()]
 
 
 class ProductDetailSerializer(ProductSerializer):
-    class Meta:
-        model = Product
-        fields = ProductSerializer.Meta.fields + [
-            "inventory",
-            "condition",
-            "shipping_fee",
-            "location",
-            "discount_price",
-            "average_ratings",
-        ]
+    inventory = serializers.IntegerField()
+    condition = serializers.CharField()
+    shipping_fee = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
+    location = serializers.CharField()
+    average_ratings = serializers.DecimalField(max_digits=4, decimal_places=2, default=0)
 
 
-class FavoriteProductSerializer(serializers.ModelSerializer):
+class FavoriteProductSerializer(serializers.Serializer):
     product = ProductSerializer()
-    flash_sale_start_date = serializers.DateTimeField(
-            source="product.flash_sale_start_date"
-    )
-    flash_sale_end_date = serializers.DateTimeField(
-            source="product.flash_sale_end_date"
-    )
-    condition = serializers.CharField(source="product.condition")
-    location = serializers.CharField(source="product.location")
-    discount_price = serializers.DecimalField(
-            max_digits=6, decimal_places=2, source="product.discount_price"
-    )
-    average_ratings = serializers.IntegerField(source="product.average_ratings")
-
-    class Meta:
-        model = FavoriteProduct
-        fields = [
-            "id",
-            "product",
-            "flash_sale_start_date",
-            "flash_sale_end_date",
-            "condition",
-            "location",
-            "discount_price",
-            "average_ratings",
-        ]
-
-    @staticmethod
-    def get_size(obj):
-        return [size.title for size in obj.product.size_inventory.all()]
-
-    @staticmethod
-    def get_color(obj):
-        return [color.name for color in obj.product.color_inventory.all()]
-
-    @staticmethod
-    def get_images(obj):
-        return [image.image for image in obj.product.images.all()]
+    sizes = serializers.SerializerMethodField()
+    color = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
 
 
-class ProductReviewSerializer(serializers.ModelSerializer):
+class ProductReviewSerializer(serializers.Serializer):
     customer_name = serializers.CharField(source="customer.full_name")
-
-    class Meta:
-        model = ProductReview
-        fields = ("customer_name", "ratings", "description")
+    ratings = serializers.ChoiceField(choices=RATING_CHOICES)
+    description = serializers.CharField()
 
 
-class AddProductReviewSerializer(serializers.ModelSerializer):
+class AddProductReviewSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
+    ratings = serializers.ChoiceField(choices=RATING_CHOICES)
+    description = serializers.CharField()
     images = serializers.ListField(
             child=serializers.ImageField(), required=False, max_length=3
     )
 
-    class Meta:
-        model = ProductReview
-        fields = ["product_id", "ratings", "description", "images"]
-
-    @staticmethod
-    def validate_product_id(value):
+    def validate_product_id(self, value):
         if not Product.objects.filter(id=value).exists():
             raise ValidationError(
                     {
@@ -212,16 +177,17 @@ class AddProductReviewSerializer(serializers.ModelSerializer):
         return value
 
 
-class CartItemSerializer(serializers.ModelSerializer):
+class CartItemSerializer(serializers.Serializer):
     product = SimpleProductSerializer()
     cart_id = serializers.UUIDField(source="order_id")
     discount_price = serializers.DecimalField(
             max_digits=6, decimal_places=2, source="product.discount_price"
     )
-
-    class Meta:
-        model = OrderItem
-        fields = ["cart_id", "product", "size", "colour", "extra_price", "discount_price", "quantity", "total_price"]
+    size = serializers.CharField()
+    colour = serializers.CharField()
+    extra_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
+    quantity = serializers.IntegerField()
+    total_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
 
 
 def validate_cart_item(attrs):
@@ -404,13 +370,16 @@ class DeleteCartItemSerializer(serializers.Serializer):
         item.delete()
 
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    transaction_ref = serializers.CharField()
     items = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Order
-        fields = ['id', 'transaction_ref', 'items', 'all_total_price', 'placed_at', 'address',
-                  'estimated_shipping_date', 'shipping_status', 'payment_status']
+    all_total_price = serializers.DecimalField(max_digits=6, decimal_places=2)
+    placed_at = serializers.DateTimeField()
+    address = serializers.UUIDField(allow_null=True)
+    estimated_shipping_date = serializers.DateTimeField()
+    shipping_status = serializers.ChoiceField(choices=SHIPPING_STATUS_CHOICES)
+    payment_status = serializers.ChoiceField(choices=PAYMENT_STATUS)
 
     def get_items(self, obj: Order):
         return [
@@ -428,13 +397,16 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
 
 
-class OrderListSerializer(serializers.ModelSerializer):
+class OrderListSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    transaction_ref = serializers.CharField()
     items_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Order
-        fields = ['id', 'transaction_ref', 'items_count', 'all_total_price', 'placed_at', 'address',
-                  'estimated_shipping_date', 'payment_status']
+    all_total_price = serializers.DecimalField(max_digits=6, decimal_places=2)
+    placed_at = serializers.DateTimeField()
+    address = serializers.UUIDField(allow_null=True)
+    estimated_shipping_date = serializers.DateTimeField()
+    shipping_status = serializers.ChoiceField(choices=SHIPPING_STATUS_CHOICES)
+    payment_status = serializers.ChoiceField(choices=PAYMENT_STATUS)
 
     @staticmethod
     def get_items_count(obj: Order):
@@ -506,21 +478,44 @@ class CheckoutSerializer(serializers.Serializer):
         }
 
 
-class AddressSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Address
-        fields = ['id', 'first_name', 'last_name', 'street_address', 'second_street_address', 'phone_number']
+class AddressSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    first_name = serializers.CharField(max_length=255)
+    last_name = serializers.CharField(max_length=255)
+    street_address = serializers.CharField(max_length=255)
+    second_street_address = serializers.CharField(max_length=255, allow_blank=True)
+    phone_number = serializers.CharField(max_length=20)
+
+    def validate_phone_number(self, value):
+        phone_number = value
+        if not phone_number.startswith('+'):
+            raise ValidationError("Phone number must start with a plus sign (+)")
+        if not phone_number[1:].isdigit():
+            raise ValidationError("Phone number must only contain digits after the plus sign (+)")
+        return value
 
 
-class CreateAddressSerializer(serializers.ModelSerializer):
+class CreateAddressSerializer(AddressSerializer):
+    id = serializers.UUIDField(allow_null=True, required=False)
+    country = CountryField()
     second_street_address = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(max_length=255)
+    state = serializers.CharField(max_length=255)
+    zip_code = serializers.CharField(max_length=10)
 
-    class Meta:
-        model = Address
-        fields = ['id', 'country', 'first_name', 'last_name', 'street_address', 'second_street_address', 'city',
-                  'state', 'zip_code', 'phone_number']
+    def validate_zip_code(self, value):
+        zip_code = value
+        if not zip_code.isdigit() or len(zip_code) > 6:
+            raise serializers.ValidationError({"message": "Invalid zip code.", "status": "failed"})
+        return value
 
     def create(self, validated_data):
         customer = self.context['request'].user
         address = Address.objects.create(customer=customer, **validated_data)
         return address
+
+    def update(self, instance, validated_data):
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        return instance
