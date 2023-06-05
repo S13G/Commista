@@ -1,4 +1,5 @@
 import secrets
+from decimal import Decimal
 
 from autoslug import AutoSlugField
 from dateutil.relativedelta import relativedelta
@@ -99,7 +100,7 @@ class Product(BaseModel):
         if self.percentage_off > 0:
             # Calculate the discounted price based on the percentage off
             discount = self.price - (self.price * self.percentage_off / 100)
-            return round(discount, 2)
+            return round(Decimal(discount), 2)
         return 0
 
 

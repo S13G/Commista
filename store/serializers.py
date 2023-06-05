@@ -22,13 +22,12 @@ class AddCheckoutOrderAddressSerializer(serializers.Serializer):
         try:
             Order.objects.get(customer=customer, transaction_ref=tx_ref)
         except Order.DoesNotExist:
-            raise serializers.ValidationError(
-                    f"Customer does not have an order with this transaction reference: {tx_ref}")
+            raise serializers.ValidationError({"message": f"Customer does not have an order with this transaction reference: {tx_ref}", "status": "failed"})
 
         try:
             Address.objects.get(customer=customer, id=address_id)
         except Address.DoesNotExist:
-            raise serializers.ValidationError(f"Customer does not have an address with this id: {address_id}")
+            raise serializers.ValidationError({"message": f"Customer does not have an address with this id: {address_id}", "status": "failed"})
 
         return attrs
 
@@ -41,9 +40,9 @@ class AddCheckoutOrderAddressSerializer(serializers.Serializer):
         try:
             order = Order.objects.get(customer=customer, transaction_ref=tx_ref)
             if order.address_id == address_id:
-                return ValidationError({"message": "This address is already added to the order."})
+                return ValidationError({"message": "This address is already added to the order.", "status": "failed"})
         except Order.DoesNotExist:
-            return ValidationError({"message": "Customer does not have an order with this transaction reference."})
+            return ValidationError({"message": "Customer does not have an order with this transaction reference.", "status": "failed"})
         address = Address.objects.get(customer=customer, id=address_id)
 
         order.address = address
