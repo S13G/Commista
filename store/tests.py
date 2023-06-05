@@ -244,26 +244,23 @@ class AuthenticationTestCase(APITestCase):
             },
         ]
 
-        self.colour_inventory = []
-        self.size_inventory = []
-
         # Create the ColourInventory instances
+        colour_inventory_objects = []
         for color_data in self.colour_inventory_data:
-            self.color = ColourInventory.objects.create(**color_data)
-            self.colour_inventory.append(self.color)
+            color_data["product"] = self.product
+            colour_inventory_obj = ColourInventory(**color_data)
+            colour_inventory_obj.save()
+            colour_inventory_objects.append(colour_inventory_obj)
 
         # Create the SizeInventory instances
+        size_inventory_objects = []
         for size_data in self.size_inventory_data:
-            self.size = SizeInventory.objects.create(**size_data)
-            self.size_inventory.append(self.size)
+            size_data["product"] = self.product
+            size_inventory_obj = SizeInventory(**size_data)
+            size_inventory_obj.save()
+            size_inventory_objects.append(size_inventory_obj)
 
-        # Assign the related objects using set()
-        self.product.color_inventory.set(self.colour_inventory)
-        self.related_product1.color_inventory.set(self.colour_inventory)
-        self.related_product2.color_inventory.set(self.colour_inventory)
-        self.product.size_inventory.set(self.size_inventory)
-        self.related_product1.size_inventory.set(self.size_inventory)
-        self.related_product2.size_inventory.set(self.size_inventory)
+        print(self.product.color_inventory)
 
         # Add the images
         self.images = [
@@ -603,11 +600,12 @@ class AuthenticationTestCase(APITestCase):
 
         data = {
             'product_id': self.product.id,
-            # 'size': 'M',
-            # 'colour': 'Red',
+            'size': 'M',
+            'colour': 'Red',
             'quantity': 2,
         }
         response = self.client.post(reverse_lazy('cart_items'), data)
+        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'success')
         self.assertEqual(response.data['message'], 'Cart item added successfully')
