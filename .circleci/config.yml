@@ -4,13 +4,6 @@ jobs:
   commista:
     docker:
       - image: cimg/python:3.10.1
-      - image: cimg/mysql:8.0
-        environment:
-          MYSQL_DATABASE: commista_test
-          MYSQL_USER: s13g
-          MYSQL_PASSWORD: S13G2£
-          MYSQL_ROOT_PASSWORD: root_password
-          MYSQL_PORT: 3306
 
     # Add steps to the job
     steps:
