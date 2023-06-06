@@ -70,6 +70,15 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
         "rest_framework.filters.SearchFilter",
     ),
+    "DEFAULT_THROTTLING_CLASSES": (
+        "rest_framework.throttling.UserRateThrottle",
+        "store.throttle.AuthenticatedScopeRateThrottle"
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        'user': '60/minute',
+        'category': '30/minute',
+        'payment': '10/minute'
+    },
     "COERCE_DECIMAL_TO_STRING": False,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 30,

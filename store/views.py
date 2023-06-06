@@ -10,6 +10,7 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from store.choices import GENDER_FEMALE, GENDER_KIDS, GENDER_MALE, PAYMENT_COMPLETE, PAYMENT_FAILED, \
     SHIPPING_STATUS_PROCESSING
@@ -21,12 +22,14 @@ from store.serializers import AddCartItemSerializer, AddCheckoutOrderAddressSeri
     AddressSerializer, CartItemSerializer, CheckoutSerializer, CreateAddressSerializer, DeleteCartItemSerializer, \
     FavoriteProductSerializer, OrderListSerializer, OrderSerializer, ProductDetailSerializer, ProductReviewSerializer, \
     ProductSerializer, UpdateCartItemSerializer
+from store.throttle import AuthenticatedScopeRateThrottle
 
 
 # Create your views here.
 class AddressListCreateView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CreateAddressSerializer
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request):
         address_id = self.request.query_params.get('address_id')
@@ -60,6 +63,7 @@ class AddressListCreateView(GenericAPIView):
 class AddressUpdateDeleteView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CreateAddressSerializer
+    throttle_classes = [UserRateThrottle]
 
     def patch(self, request, *args, **kwargs):
         address_id = self.kwargs.get('address_id')
@@ -86,6 +90,7 @@ class AddressUpdateDeleteView(GenericAPIView):
 
 class CartItemCreateUpdateDeleteView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request):
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
@@ -126,6 +131,7 @@ class CartItemCreateUpdateDeleteView(GenericAPIView):
 
 class CartItemsListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request, *args, **kwargs):
         customer = self.request.user
@@ -144,6 +150,8 @@ class CartItemsListView(GenericAPIView):
 
 class CategoryListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AuthenticatedScopeRateThrottle]
+    throttle_scope = 'category'
 
     @staticmethod
     def get(request):
@@ -159,6 +167,8 @@ class CategoryListView(GenericAPIView):
 class CategorySalesView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
+    throttle_classes = [AuthenticatedScopeRateThrottle]
+    throttle_scope = 'category'
 
     def get(self, request):
         categories = Category.objects.values('id', 'title', )
@@ -182,6 +192,7 @@ class CategorySalesView(GenericAPIView):
 class CheckoutView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CheckoutSerializer
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={'request': request})
@@ -194,6 +205,7 @@ class CheckoutView(GenericAPIView):
 class CheckoutOrderAddressCreateView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = AddCheckoutOrderAddressSerializer
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=self.request.data, context={'request': request})
@@ -207,6 +219,7 @@ class CheckoutOrderAddressCreateView(GenericAPIView):
 
 class FavoriteProductView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request, *args, **kwargs):
         customer = self.request.user
@@ -246,6 +259,7 @@ class FavoriteProductView(GenericAPIView):
 
 class CouponCodeView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     @staticmethod
     def get(request):
@@ -257,6 +271,7 @@ class CouponCodeView(GenericAPIView):
 class FavoriteProductsListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = FavoriteProductSerializer
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request):
         customer = self.request.user
@@ -280,6 +295,7 @@ class FilteredProductListView(ListAPIView):
     filterset_class = ProductFilter
     search_fields = ['title', 'description']
     queryset = Product.objects.all()
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -290,6 +306,7 @@ class FilteredProductListView(ListAPIView):
 
 class NotificationListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request):
         customer = self.request.user
@@ -304,6 +321,7 @@ class NotificationListView(GenericAPIView):
 
 class OrderListView(GetOrderByTransactionRefMixin, GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request, *args, **kwargs):
         transaction_reference = self.request.query_params.get('transaction_ref')
@@ -329,6 +347,7 @@ class OrderListView(GetOrderByTransactionRefMixin, GenericAPIView):
 
 class OrderDeleteView(GetOrderByTransactionRefMixin, GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
     def delete(self, request, *args, **kwargs):
         transaction_reference = self.kwargs.get('transaction_ref')
@@ -345,6 +364,7 @@ class OrderDeleteView(GetOrderByTransactionRefMixin, GenericAPIView):
 class ProductDetailView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductDetailSerializer
+    throttle_classes = [UserRateThrottle]
 
     def get(self, request, *args, **kwargs):
         product_id = self.kwargs.get("product_id")
@@ -372,6 +392,7 @@ class ProductDetailView(GenericAPIView):
 class ProductReviewCreateView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = AddProductReviewSerializer
+    throttle_classes = [UserRateThrottle]
 
     def post(self, request):
         customer = self.request.user
@@ -391,6 +412,8 @@ class ProductReviewCreateView(GenericAPIView):
 
 class VerifyPaymentView(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AuthenticatedScopeRateThrottle]
+    throttle_scope = 'payment'
 
     def get(self, request, *args, **kwargs):
         customer = self.request.user

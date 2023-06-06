@@ -8,8 +8,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from store.choices import PAYMENT_STATUS, RATING_CHOICES, SHIPPING_STATUS_CHOICES
-from store.models import Address, Colour, ColourInventory, CouponCode, Order, OrderItem, Product, \
-    ProductImage, Size, SizeInventory
+from store.models import Address, ColourInventory, CouponCode, Order, OrderItem, Product, \
+    ProductImage, SizeInventory
 
 
 class AddCheckoutOrderAddressSerializer(serializers.Serializer):
@@ -61,33 +61,21 @@ class ColourSerializer(serializers.Serializer):
     name = serializers.CharField()
     hex_code = serializers.CharField()
 
-    class Meta:
-        model = Colour
-
 
 class ColourInventorySerializer(serializers.Serializer):
     colour = ColourSerializer()
     quantity = serializers.IntegerField()
     extra_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
 
-    class Meta:
-        model = ColourInventory
-
 
 class SizeSerializer(serializers.Serializer):
     title = serializers.CharField()
-
-    class Meta:
-        model = Size
 
 
 class SizeInventorySerializer(serializers.Serializer):
     size = SizeSerializer()
     quantity = serializers.IntegerField()
     extra_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
-
-    class Meta:
-        model = SizeInventory
 
 
 class ProductImageSerializer(serializers.Serializer):
@@ -111,9 +99,6 @@ class SimpleProductSerializer(serializers.Serializer):
     price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
     images = ProductImageSerializer(many=True)
 
-    class Meta:
-        model = Product
-
 
 class ProductSerializer(serializers.Serializer):
     id = serializers.UUIDField()
@@ -126,12 +111,9 @@ class ProductSerializer(serializers.Serializer):
     percentage_off = serializers.IntegerField()
     discount_price = serializers.DecimalField(max_digits=6, decimal_places=2, default=0)
     images = serializers.SerializerMethodField()
-    sizes = SizeInventorySerializer(many=True, read_only=True)
-    colours = ColourInventorySerializer(many=True, read_only=True)
+    size_inventory = SizeInventorySerializer(many=True)
+    color_inventory = ColourInventorySerializer(many=True)
     shipped_out_days = serializers.IntegerField()
-
-    class Meta:
-        model = Product
 
     def get_images(self, obj: Product):
         return [image.image for image in obj.images.all()]
@@ -147,9 +129,6 @@ class ProductDetailSerializer(ProductSerializer):
 
 class FavoriteProductSerializer(serializers.Serializer):
     product = ProductSerializer()
-    sizes = serializers.SerializerMethodField()
-    color = serializers.SerializerMethodField()
-    images = serializers.SerializerMethodField()
 
 
 class ProductReviewSerializer(serializers.Serializer):
@@ -178,8 +157,8 @@ class AddProductReviewSerializer(serializers.Serializer):
 
 
 class CartItemSerializer(serializers.Serializer):
-    product = SimpleProductSerializer()
     cart_id = serializers.UUIDField(source="order_id")
+    product = SimpleProductSerializer()
     discount_price = serializers.DecimalField(
             max_digits=6, decimal_places=2, source="product.discount_price"
     )
@@ -246,6 +225,7 @@ class AddCartItemSerializer(serializers.Serializer):
                 raise ValidationError({"message": "Size for this product does not exist", "status": "failed"})
 
             if size_inv.quantity <= 0:
+                size_inv.quantity = 0
                 raise ValidationError({"message": "Size for this product is out of stock", "status": "failed"})
 
             extra_price += size_inv.extra_price
@@ -257,6 +237,7 @@ class AddCartItemSerializer(serializers.Serializer):
                 raise ValidationError({"message": "Colour for this product does not exist", "status": "failed"})
 
             if colour_inv.quantity <= 0:
+                colour_inv.quantity = 0
                 raise ValidationError({"message": "Colour for this product is out of stock", "status": "failed"})
 
             extra_price += colour_inv.extra_price
