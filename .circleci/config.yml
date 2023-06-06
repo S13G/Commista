@@ -4,12 +4,16 @@ jobs:
   commista:
     docker:
       - image: cimg/python:3.10.1
-      - image: cimg/mysql:8.0 # setting up database for testing
+      - image: cimg/mysql:8.0
         environment:
-          MYSQL_ROOT_PASSWORD: root_password
-          MYSQL_DATABASE: commista
+          MYSQL_DATABASE: commista_test
           MYSQL_USER: s13g
           MYSQL_PASSWORD: S13G2£
+          MYSQL_ROOT_PASSWORD: root_password
+        ports:
+          - 3306:3306  # Map container port to host port for accessing the database
+
+    # Add steps to the job
     steps:
       - checkout
       - run:
@@ -19,12 +23,13 @@ jobs:
           name: "Install dependencies"
           command: "pip3 install -r requirements.txt"
       - run:
-          name: "Wait for MySQL to be ready"
-          command: "dockerize -wait tcp://mysql:3306 -timeout 1m" # Adjust the sleep duration as needed
+          name: "Wait for MYSQL DB"
+          command: "sleep 90"
       - run:
           name: "Run tests"
           command: "pytest"
 
+# Orchestrate jobs using workflows
 workflows:
   commista-workflow:
     jobs:
