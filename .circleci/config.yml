@@ -6,11 +6,10 @@ jobs:
       - image: cimg/python:3.10.1
       - image: cimg/mysql:8.0 # setting up database for testing
         environment:
-          environment:
-            MYSQL_ROOT_PASSWORD: root_password
-            MYSQL_DATABASE: commista
-            MYSQL_USER: s13g
-            MYSQL_PASSWORD: S13G2£
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: commista
+          MYSQL_USER: s13g
+          MYSQL_PASSWORD: S13G2£
     steps:
       - checkout
       - run:
