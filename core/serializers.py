@@ -177,6 +177,12 @@ class UpdateProfileSerializer(serializers.Serializer):
             raise ValidationError({"message": f"Image {avatar} size should be less than 5MB", "status": "failed"})
         return attrs
 
+    def update(self, instance, validated_data):
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+            instance.save()
+        return instance
+
 
 class VerifySerializer(serializers.Serializer):
     code = serializers.IntegerField()
