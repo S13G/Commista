@@ -6,7 +6,11 @@ jobs:
       - image: cimg/python:3.10.1
       - image: cimg/mysql:8.0 # setting up database for testing
         environment:
-          MYSQL_ROOT_PASSWORD: root_password
+          environment:
+            MYSQL_ROOT_PASSWORD: root_password
+            MYSQL_DATABASE: commista
+            MYSQL_USER: s13g
+            MYSQL_PASSWORD: S13G2£
     steps:
       - checkout
       - run:
@@ -17,7 +21,7 @@ jobs:
           command: "pip3 install -r requirements.txt"
       - run:
           name: "Wait for MySQL to be ready"
-          command: "sleep 100" # Adjust the sleep duration as needed
+          command: "dockerize -wait tcp://mysql:3306 -timeout 1m" # Adjust the sleep duration as needed
       - run:
           name: "Run tests"
           command: "pytest"
