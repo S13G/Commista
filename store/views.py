@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView, ListAPIView
@@ -31,6 +32,24 @@ class AddressListCreateView(GenericAPIView):
     serializer_class = CreateAddressSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Get addresses",
+            description=
+            """
+            Retrieve all addresses or a specific address of the authenticated user.
+            """,
+            parameters=[
+                OpenApiParameter(name="address_id", description="ID of the address (optional)", required=False),
+            ],
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Addresses retrieved successfully",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Address not found",
+                )
+            }
+    )
     def get(self, request):
         address_id = self.request.query_params.get('address_id')
         if address_id:
@@ -52,6 +71,18 @@ class AddressListCreateView(GenericAPIView):
                     {"message": "All addresses retrieved successfully", "data": serializer.data, "status": "success"},
                     status=status.HTTP_200_OK)
 
+    @extend_schema(
+            summary="Add address",
+            description=
+            """
+            Add a new address for the authenticated user.
+            """,
+            responses={
+                status.HTTP_201_CREATED: OpenApiResponse(
+                        description="Address added successfully",
+                ),
+            }
+    )
     def post(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -65,6 +96,21 @@ class AddressUpdateDeleteView(GenericAPIView):
     serializer_class = CreateAddressSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Update Address",
+            description=
+            """
+            Update an existing address.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Address updated successfully",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Address not found",
+                ),
+            }
+    )
     def patch(self, request, *args, **kwargs):
         address_id = self.kwargs.get('address_id')
         try:
@@ -77,6 +123,21 @@ class AddressUpdateDeleteView(GenericAPIView):
         return Response({"message": "Address updated successfully", "data": serializer.data, "status": "success"},
                         status=status.HTTP_200_OK)
 
+    @extend_schema(
+            summary="Delete Address",
+            description=
+            """
+            Delete an existing address.
+            """,
+            responses={
+                status.HTTP_204_NO_CONTENT: OpenApiResponse(
+                        description="Address deleted successfully",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Address not found",
+                ),
+            }
+    )
     def delete(self, request, *args, **kwargs):
         address_id = self.kwargs.get('address_id')
         try:
@@ -92,6 +153,31 @@ class CartItemCreateUpdateDeleteView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Create Cart Items",
+            description=
+            """
+            Create cart items.
+            - To add a new cart item, make a POST request with the required data.
+            The request should include the following data:
+            - `product_id`: ID of the product to be added.
+            - `size`: Size of the product to added, if None, leave blank
+            - `colour`: Color of the product to added, if None, leave blank
+            - `quantity`: Quantity of the product to be added and you can update item quantity by making
+                another post request and only changing the quantity and specify the cart_id too.
+        
+            If the cart item is added successfully, the response will include the following data:
+            - `message`: A success message indicating that the cart item has been added successfully.
+            - `data`: The serialized representation of the added cart item.
+            - `status`: The status of the request.
+            """,
+            responses={
+                status.HTTP_201_CREATED: OpenApiResponse(
+                        description="Cart item added successfully",
+                        response=CartItemSerializer,
+                ),
+            }
+    )
     def post(self, request):
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -102,6 +188,31 @@ class CartItemCreateUpdateDeleteView(GenericAPIView):
                 status=status.HTTP_201_CREATED
         )
 
+    @extend_schema(
+            summary="Update Cart Items",
+            description=
+            """
+            Update cart items.
+            - To update an existing cart item, make a PATCH request with the required data.
+            The request should include the following data:
+            - `cart_id`: ID of the cart containing the item.
+            - `product_id`: ID of the product to be updated.
+            - `size`: Size of the product to added, if None, leave blank
+            - `colour`: Color of the product to added, if None, leave blank
+            - `quantity`: Updated quantity of the product.
+
+            If the cart item is added successfully, the response will include the following data:
+            - `message`: A success message indicating that the cart item has been added successfully.
+            - `data`: The serialized representation of the added cart item.
+            - `status`: The status of the request.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Cart item updated successfully",
+                        response=CartItemSerializer,
+                ),
+            }
+    )
     def patch(self, request):
         serializer = self.get_serializer(data=self.request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -109,8 +220,28 @@ class CartItemCreateUpdateDeleteView(GenericAPIView):
         updated_cart_item_data = CartItemSerializer(updated_cart_item, context={'request': request}).data
         return Response(
                 {"message": "Cart item updated successfully", "data": updated_cart_item_data, "status": "success"},
-                status=status.HTTP_201_CREATED)
+                status=status.HTTP_200_OK)
 
+    @extend_schema(
+            summary="Delete/Remove Cart Items",
+            description=
+            """
+            Delete/Remove cart items.
+            - To delete an existing cart item, make a DELETE request with the required data.
+            The request should include the following data:
+            - `cart_id`: ID of the cart containing the item.
+            - `product_id`: ID of the product to be updated.
+
+            If the cart item is deleted successfully, the response will include the following data:
+            - `message`: A success message indicating that the cart item has been deleted successfully.
+            - `status`: The status of the request.
+            """,
+            responses={
+                status.HTTP_204_NO_CONTENT: OpenApiResponse(
+                        description="Cart item deleted successfully",
+                ),
+            }
+    )
     def delete(self, request):
         serializer = self.get_serializer(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -133,6 +264,22 @@ class CartItemsListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Retrieve Cart Items",
+            description=
+            """
+            This endpoint allows the authenticated user to retrieve the items in their cart.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Cart items retrieved successfully",
+                        response=CartItemSerializer,
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Cart not found",
+                )
+            }
+    )
     def get(self, request, *args, **kwargs):
         customer = self.request.user
         cart_id = self.kwargs.get("cart_id")
@@ -153,8 +300,19 @@ class CategoryListView(GenericAPIView):
     throttle_classes = [AuthenticatedScopeRateThrottle]
     throttle_scope = 'category'
 
-    @staticmethod
-    def get(request):
+    @extend_schema(
+            summary="List Categories",
+            description=
+            """
+            Fetches all categories and categorized by gender.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="All categories fetched",
+                ),
+            }
+    )
+    def get(self, request):
         all_categories = Category.objects.values('id', 'title')
         women_categories = Category.objects.filter(gender=GENDER_MALE).values('id', 'title')
         men_categories = Category.objects.filter(gender=GENDER_FEMALE).values('id', 'title')
@@ -170,6 +328,19 @@ class CategorySalesView(GenericAPIView):
     throttle_classes = [AuthenticatedScopeRateThrottle]
     throttle_scope = 'category'
 
+    @extend_schema(
+            summary="Categories and Products",
+            description=
+            """
+            List all categories and products.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Fetched all products",
+                        response=ProductSerializer,
+                ),
+            }
+    )
     def get(self, request):
         categories = Category.objects.values('id', 'title', )
         products_without_flash_sales = Product.objects.filter(flash_sale_start_date=None, flash_sale_end_date=None)
@@ -194,6 +365,19 @@ class CheckoutView(GenericAPIView):
     serializer_class = CheckoutSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Create an order",
+            description=
+            """
+            This endpoint allows the authenticated user to create an order.
+            """,
+            responses={
+                status.HTTP_201_CREATED: OpenApiResponse(
+                        description="Order created successfully",
+                        response=OrderSerializer,
+                ),
+            }
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -207,6 +391,19 @@ class CheckoutOrderAddressCreateView(GenericAPIView):
     serializer_class = AddCheckoutOrderAddressSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Add delivery address to an order",
+            description=
+            """
+            This endpoint allows the authenticated user to add a delivery address to an order.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Address added to the order successfully.",
+                        response=OrderSerializer,
+                ),
+            }
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=self.request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -221,6 +418,24 @@ class FavoriteProductView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Add product to favorites",
+            description=
+            """
+            This endpoint allows an authenticated user to add a product to their favorites list.
+            """,
+            responses={
+                status.HTTP_201_CREATED: OpenApiResponse(
+                        description="Product added to favorites.",
+                ),
+                status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                        description="Invalid or missing product ID.",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Product not found.",
+                ),
+            }
+    )
     def post(self, request, *args, **kwargs):
         customer = self.request.user
         product_id = self.kwargs.get("product_id")
@@ -240,6 +455,24 @@ class FavoriteProductView(GenericAPIView):
         else:
             return Response({"message": "Product already in favorites", "status": "success"}, status=status.HTTP_200_OK)
 
+    @extend_schema(
+            summary="Remove product from favorites",
+            description=
+            """
+            This endpoint allows an authenticated user to remove a product to their favorites list.
+            """,
+            responses={
+                status.HTTP_204_NO_CONTENT: OpenApiResponse(
+                        description="Product removed from favorites list.",
+                ),
+                status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                        description="Invalid or missing product ID.",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Product not found.",
+                ),
+            }
+    )
     def delete(self, request, *args, **kwargs):
         customer = self.request.user
         product_id = self.kwargs.get("product_id")
@@ -261,8 +494,19 @@ class CouponCodeView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
-    @staticmethod
-    def get(request):
+    @extend_schema(
+            summary="Coupon endpoint",
+            description=
+            """
+            This endpoint gets all available coupons.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="All coupons fetched.",
+                ),
+            }
+    )
+    def get(self, request):
         coupon_codes = CouponCode.objects.values('id', 'code', 'price', 'expired', 'expiry_date')
         return Response({"message": "All coupons fetched", "data": coupon_codes, "status": "success"},
                         status=status.HTTP_200_OK)
@@ -273,6 +517,19 @@ class FavoriteProductsListView(GenericAPIView):
     serializer_class = FavoriteProductSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Retrieves all favorite products",
+            description=
+            """
+            This endpoint allows an authenticated user to retrieve their favorite products list.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="All favorite products fetched.",
+                        response=ProductSerializer(many=True)
+                ),
+            }
+    )
     def get(self, request):
         customer = self.request.user
         if customer is None:
@@ -297,6 +554,22 @@ class FilteredProductListView(ListAPIView):
     queryset = Product.objects.all()
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Filtered Product List",
+            description=
+            """
+            This endpoint retrieves a list of filtered products.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Products filtered successfully.",
+                        response=ProductSerializer(many=True)
+                ),
+                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                        description="Authentication credentials were not provided."
+                ),
+            },
+    )
     def get(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(queryset, many=True)
@@ -308,6 +581,21 @@ class NotificationListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Notifications",
+            description=
+            """
+            This endpoint fetches all notifications.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Notifications fetched.",
+                ),
+                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                        description="Authentication credentials were not provided."
+                ),
+            },
+    )
     def get(self, request):
         customer = self.request.user
         if customer.is_staff:
@@ -323,6 +611,27 @@ class OrderListView(GetOrderByTransactionRefMixin, GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Get Order List",
+            description=
+            """
+            Retrieve a list of orders for the authenticated customer or a specific order by transaction reference.
+            """,
+            parameters=[
+                OpenApiParameter(name="transaction_ref",
+                                 description="Transaction reference of the specific order to retrieve (optional)",
+                                 required=False),
+            ],
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Order retrieved successfully",
+                        response=OrderListSerializer,
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Order not found",
+                )
+            }
+    )
     def get(self, request, *args, **kwargs):
         transaction_reference = self.request.query_params.get('transaction_ref')
         customer = self.request.user
@@ -349,6 +658,24 @@ class OrderDeleteView(GetOrderByTransactionRefMixin, GenericAPIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Delete existing order",
+            description=
+            """
+            Delete an existing order.
+            """,
+            responses={
+                status.HTTP_204_NO_CONTENT: OpenApiResponse(
+                        description="Order deleted successfully",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Order not found",
+                ),
+                status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                        description="Transaction reference is required",
+                ),
+            }
+    )
     def delete(self, request, *args, **kwargs):
         transaction_reference = self.kwargs.get('transaction_ref')
         if not transaction_reference:
@@ -366,10 +693,29 @@ class ProductDetailView(GenericAPIView):
     serializer_class = ProductDetailSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Product Detail",
+            description=
+            """
+            Get the details of a specific product, along with related products and reviews.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Product successfully fetched",
+                        response=ProductDetailSerializer,
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="This product does not exist, try again",
+                ),
+                status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                        description="Product ID is required",
+                ),
+            }
+    )
     def get(self, request, *args, **kwargs):
         product_id = self.kwargs.get("product_id")
         if product_id is None:
-            return Response({"message": "This field is required", "status": "success"},
+            return Response({"message": "Product ID is required", "status": "success"},
                             status=status.HTTP_400_BAD_REQUEST)
         try:
             product = Product.objects.get(id=product_id)
@@ -394,6 +740,21 @@ class ProductReviewCreateView(GenericAPIView):
     serializer_class = AddProductReviewSerializer
     throttle_classes = [UserRateThrottle]
 
+    @extend_schema(
+            summary="Create a product review",
+            description=
+            """
+            This endpoint allows an authenticated user to create a review for a product.
+            """,
+            responses={
+                status.HTTP_201_CREATED: OpenApiResponse(
+                        description="Review created successfully",
+                ),
+                status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                        description="Bad request. Maximum number of allowed images exceeded.",
+                ),
+            }
+    )
     def post(self, request):
         customer = self.request.user
         serializer = self.serializer_class(data=request.data)
@@ -415,6 +776,36 @@ class VerifyPaymentView(GenericAPIView):
     throttle_classes = [AuthenticatedScopeRateThrottle]
     throttle_scope = 'payment'
 
+    @extend_schema(
+            summary="Verify Payment",
+            description=
+            """
+            This endpoint allows the authenticated user to verify a payment for an order.
+            Retrieves the order based on the provided transaction reference (`tx_ref`) and verifies the payment.
+            If the payment is successful, updates the order's payment and shipping status.
+    
+            - `tx_ref`: The transaction reference of the order.
+            """,
+            responses={
+                status.HTTP_200_OK: OpenApiResponse(
+                        description="Product successfully fetched",
+                ),
+                status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                        description="Customer does not have an order with this transaction reference.",
+                ),
+                status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                        description="This order is missing an address OR "
+                                    "Payment verification failed. Please make a payment OR "
+                                    "Invalid payment amount",
+                ),
+                status.HTTP_406_NOT_ACCEPTABLE: OpenApiResponse(
+                        description="Invalid payment amount. Please make a payment with the correct amount."
+                ),
+                status.HTTP_417_EXPECTATION_FAILED: OpenApiResponse(
+                        description="Payment failed"
+                )
+            }
+    )
     def get(self, request, *args, **kwargs):
         customer = self.request.user
         tx_ref = self.kwargs.get('tx_ref')
