@@ -91,8 +91,10 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "COMMISTA API",
-    "DESCRIPTION": "Commista: A e-commerce API",
+    "DESCRIPTION": "Commista: An E-commerce API",
     "VERSION": "1.0.0",
+    "CONTACT": "lookouttest91@zohomail.com",
+    "SCHEMA_PATH_PREFIX": r'/api/v[0-9]',
     "SERVE_INCLUDE_SCHEMA": False,
     "DISABLE_ERRORS_AND_WARNINGS": True,
 }

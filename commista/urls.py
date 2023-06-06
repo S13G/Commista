@@ -20,14 +20,19 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+# Version 1 URLs
+urlpatterns_v1 = [
+    path("account/", include("core.urls")),  # Example endpoint from version 1
+    path("store/", include("store.urls")),  # Example endpoint from version 1
+]
 urlpatterns = [
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path('admin/', admin.site.urls),
-    path('account/', include('core.urls')),
-    path('store/', include('store.urls')),
+    path("api/v1/", include(urlpatterns_v1)),
     path('__debug__/', include('debug_toolbar.urls')),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
