@@ -1,11 +1,12 @@
 import re
 
-from django.core.validators import FileExtensionValidator, RegexValidator
+from django.core.validators import FileExtensionValidator
 from django.core.validators import validate_email
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from core.models import Profile, User
+from core.choices import GENDER_CHOICES
+from core.models import User
 
 
 class ChangeEmailSerializer(serializers.Serializer):
@@ -61,13 +62,29 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class ProfileSerializer(serializers.ModelSerializer):
+class ProfileSerializer(serializers.Serializer):
     email = serializers.EmailField(source="user.email")
     full_name = serializers.CharField(source="user.full_name")
+    gender = serializers.ChoiceField(choices=GENDER_CHOICES)
+    birthday = serializers.DateField()
+    phone_number = serializers.CharField(max_length=20)
+    _avatar = serializers.ImageField(validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])])
 
-    class Meta:
-        model = Profile
-        fields = ["_avatar", "email", "full_name", "gender", "birthday", "phone_number"]
+    def validate__avatar(self, attrs):
+        avatar = attrs.get('_avatar')
+        max_size = 5 * 1024 * 1024  # 3MB in bytes
+        if avatar.size > max_size:
+            raise ValidationError({"message": f"Image {avatar} size should be less than 5MB", "status": "failed"})
+        return attrs
+
+    def validate_phone_number(self, value):
+        phone_number = value
+        if not phone_number.startswith('+'):
+            raise ValidationError({"message": "Phone number must start with a plus sign (+)", "status": "failed"})
+        if not phone_number[1:].isdigit():
+            raise ValidationError(
+                    {"message": "Phone number must only contain digits after the plus sign (+)", "status": "failed"})
+        return value
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -136,25 +153,29 @@ class RequestNewPasswordCodeSerializer(serializers.Serializer):
         return attrs
 
 
-class UpdateProfileSerializer(serializers.ModelSerializer):
+class UpdateProfileSerializer(serializers.Serializer):
     _avatar = serializers.ImageField(validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])])
     birthday = serializers.DateField()
     email = serializers.EmailField(read_only=True)
     full_name = serializers.CharField(max_length=255)
-    gender = serializers.CharField(max_length=1, validators=[RegexValidator(r'^[MFO]$')])
+    gender = serializers.ChoiceField(choices=GENDER_CHOICES)
     phone_number = serializers.CharField(max_length=20)
 
-    class Meta:
-        model = Profile
-        fields = ['_avatar', 'birthday', 'email', 'full_name', 'gender', 'phone_number']
-
-    @staticmethod
-    def validate_phone_number(value):
-        if not value.startswith('+'):
-            raise serializers.ValidationError("Phone number must start with a plus sign (+)")
-        if not value[1:].isdigit():
-            raise serializers.ValidationError("Phone number must only contain digits after the plus sign (+)")
+    def validate_phone_number(self, value):
+        phone_number = value
+        if not phone_number.startswith('+'):
+            raise ValidationError({"message": "Phone number must start with a plus sign (+)", "status": "failed"})
+        if not phone_number[1:].isdigit():
+            raise ValidationError(
+                    {"message": "Phone number must only contain digits after the plus sign (+)", "status": "failed"})
         return value
+
+    def validate__avatar(self, attrs):
+        avatar = attrs.get('_avatar')
+        max_size = 5 * 1024 * 1024  # 3MB in bytes
+        if avatar.size > max_size:
+            raise ValidationError({"message": f"Image {avatar} size should be less than 5MB", "status": "failed"})
+        return attrs
 
 
 class VerifySerializer(serializers.Serializer):
