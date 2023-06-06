@@ -1,14 +1,12 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
 jobs:
   commista:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
     docker:
       - image: cimg/python:3.10.1
       - image: cimg/mysql:8.0 # setting up database for testing
-    # Add steps to the job
+        environment:
+          MYSQL_ROOT_PASSWORD: root_password
     steps:
       - checkout
       - run:
@@ -18,10 +16,12 @@ jobs:
           name: "Install dependencies"
           command: "pip3 install -r requirements.txt"
       - run:
+          name: "Wait for MySQL to be ready"
+          command: "sleep 100" # Adjust the sleep duration as needed
+      - run:
           name: "Run tests"
           command: "pytest"
 
-# Orchestrate jobs using workflows
 workflows:
   commista-workflow:
     jobs:
