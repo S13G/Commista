@@ -621,7 +621,7 @@ class AuthenticationTestCase(APITestCase):
         }
 
         response = self.client.patch(reverse_lazy('cart_items'), data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'success')
         self.assertEqual(response.data['message'], 'Cart item updated successfully')
 

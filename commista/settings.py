@@ -75,7 +75,7 @@ REST_FRAMEWORK = {
         "store.throttle.AuthenticatedScopeRateThrottle"
     ),
     "DEFAULT_THROTTLE_RATES": {
-        'user': '60/minute',
+        'user': '50/minute',
         'category': '30/minute',
         'payment': '15/minute',
         'email': '20/minute',
