@@ -6,7 +6,7 @@ jobs:
   commista:
     # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
     docker:
-      - image: cimg/python:3.11.3
+      - image: cimg/python:3.10.1
     # Add steps to the job
     steps:
       - checkout
