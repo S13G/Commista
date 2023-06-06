@@ -8,8 +8,6 @@ jobs:
     docker:
       - image: cimg/python:3.10.1
       - image: cimg/mysql:8.0 # setting up database for testing
-        environment:
-          MYSQL_USER: s13g
     # Add steps to the job
     steps:
       - checkout
