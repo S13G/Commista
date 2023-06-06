@@ -4,7 +4,12 @@ jobs:
   commista:
     docker:
       - image: cimg/python:3.10.1
-
+      - image: cimg/mysql:8.0
+        environment:
+          MYSQL_NAME: commista
+          MYSQL_USER: s13g
+          MYSQL_HOST: localhost
+          MYSQL_PORT: 3306
     # Add steps to the job
     steps:
       - checkout
@@ -18,7 +23,6 @@ jobs:
           name: "Run tests"
           command: "pytest"
 
-# Orchestrate jobs using workflows
 workflows:
   commista-workflow:
     jobs:
