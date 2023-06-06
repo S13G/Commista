@@ -15,9 +15,6 @@ jobs:
           name: "Install dependencies"
           command: "pip3 install -r requirements.txt"
       - run:
-          name: "Wait for MYSQL DB"
-          command: "sleep 90"
-      - run:
           name: "Run tests"
           command: "pytest"
 
