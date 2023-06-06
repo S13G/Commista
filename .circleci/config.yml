@@ -11,7 +11,8 @@ jobs:
           MYSQL_PASSWORD: S13G2£
           MYSQL_ROOT_PASSWORD: root_password
           MYSQL_PORT: 3306
-          MYSQL_HOST: localhost
+          MYSQL_HOST: 127.0.0.1  # Use IP address instead of 'localhost'
+          MYSQL_UNIX_PORT: ''    # Remove the UNIX socket configuration
     # Add steps to the job
     steps:
       - checkout
