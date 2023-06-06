@@ -77,7 +77,9 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         'user': '60/minute',
         'category': '30/minute',
-        'payment': '10/minute'
+        'payment': '15/minute',
+        'email': '20/minute',
+        'password': '20/minute'
     },
     "COERCE_DECIMAL_TO_STRING": False,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",

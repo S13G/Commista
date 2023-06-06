@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, TokenObtainPairSerializer, \
     TokenRefreshSerializer
@@ -17,6 +18,7 @@ from core.models import Profile, User
 from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, LoginSerializer, ProfileSerializer, \
     RegisterSerializer, RequestEmailChangeCodeSerializer, RequestNewPasswordCodeSerializer, \
     ResendEmailVerificationSerializer, UpdateProfileSerializer, VerifySerializer
+from store.throttle import AuthenticatedScopeRateThrottle
 
 
 # Create your views here.
@@ -25,6 +27,8 @@ from core.serializers import ChangeEmailSerializer, ChangePasswordSerializer, Lo
 class ChangeEmailView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = ChangeEmailSerializer
+    throttle_classes = [AuthenticatedScopeRateThrottle]
+    throttle_scope = 'email'
 
     @extend_schema(
             summary="Change email",
@@ -85,6 +89,8 @@ class ChangeEmailView(GenericAPIView):
 class ChangePasswordView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = ChangePasswordSerializer
+    throttle_classes = [AuthenticatedScopeRateThrottle]
+    throttle_scope = 'password'
 
     @extend_schema(
             summary="Change password",
@@ -135,6 +141,7 @@ class ChangePasswordView(GenericAPIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
             summary="Login",
@@ -206,6 +213,7 @@ class LogoutView(TokenBlacklistView):
 class ListUpdateProfileView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = ProfileSerializer
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
             summary="Get user profile",
@@ -334,6 +342,7 @@ class RegisterView(GenericAPIView):
 class RequestEmailChangeCodeView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = RequestEmailChangeCodeSerializer
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
             summary="Request email change code",
@@ -407,6 +416,7 @@ class ResendEmailVerificationCodeView(GenericAPIView):
 class RequestNewPasswordCodeView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = RequestNewPasswordCodeSerializer
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
             summary="Request new password code",
