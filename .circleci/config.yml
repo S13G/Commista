@@ -10,8 +10,7 @@ jobs:
           MYSQL_USER: s13g
           MYSQL_PASSWORD: S13G2£
           MYSQL_ROOT_PASSWORD: root_password
-        ports:
-          - 3306:3306  # Map container port to host port for accessing the database
+          MYSQL_PORT: 3306
 
     # Add steps to the job
     steps:
