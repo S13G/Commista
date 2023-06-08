@@ -6,15 +6,15 @@ CLOUDINARY_STORAGE = {
     "API_SECRET": config("CLOUDINARY_API_SECRET"),
 }
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": config("DATABASE_NAME"),
-        "HOST": config("DATABASE_HOST"),
-        "USER": config("DATABASE_USER"),
-        "PASSWORD": config("DATABASE_PASSWORD"),
-    }
-}
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": config("DATABASE_NAME"),
+#         "HOST": config("DATABASE_HOST"),
+#         "USER": config("DATABASE_USER"),
+#         "PASSWORD": config("DATABASE_PASSWORD"),
+#     }
+# }
 
 INSTALLED_APPS.remove("debug_toolbar")
 
