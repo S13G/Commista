@@ -1,9 +1,13 @@
 version: 2.1
+orbs:
+  python: circleci/python@2.0.3
 
 jobs:
-  commista:
+  build_and_test:
+    executor:
+      python/default
     docker:
-      - image: cimg/python:3.10.1
+      - image: cimg/python:3.10.2
 
     steps:
       - checkout
@@ -16,6 +20,20 @@ jobs:
       - run:
           name: "Run tests"
           command: "pytest"
+
+  build_and_test_docker:
+    parallelism: 4
+    docker:
+      - image: cimg/python:3.10.2
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.7
+          docker_layer_caching: true
+      - run:
+          name: Configuring environment variables
+          command: |
+
 
 workflows:
   commista-workflow:
