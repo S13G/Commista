@@ -1,5 +1,3 @@
-import dj_database_url
-
 from .settings import *
 
 CLOUDINARY_STORAGE = {
@@ -8,11 +6,19 @@ CLOUDINARY_STORAGE = {
     "API_SECRET": config("CLOUDINARY_API_SECRET"),
 }
 
-DATABASES = {"default": dj_database_url.parse(config("DATABASE_URL"))}
+DATABASES = {
+    'default': dj_database_url.config(
+            default=config("DATABASE_URL"),
+            conn_max_age=600,
+            conn_health_checks=True,
+    )
+}
 
 INSTALLED_APPS.remove("debug_toolbar")
 
 EMAIL_USE_TLS = True
+
+EMAIL_USE_SSL = False
 
 EMAIL_HOST = "smtp.gmail.com"
 

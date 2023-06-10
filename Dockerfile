@@ -3,6 +3,9 @@ FROM python:3.9-alpine
 # Create a folder for the app
 WORKDIR /commista
 
+# Install PostgreSQL dependencies
+RUN apk add --no-cache postgresql-dev gcc musl-dev
+
 # Create a group and add a user to the group
 RUN addgroup systemUserGroup && adduser -D -G systemUserGroup developer
 
