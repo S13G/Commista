@@ -1,6 +1,6 @@
 # Commista E-Commerce API
 
-![img.png](img.png)
+![bg.png](static%2Fbg.png)
 
 Commista is a versatile commerce API designed to facilitate seamless online shopping experiences. With Commista,
 administrators have full control over product management, including the ability to add new products, create attractive
@@ -61,16 +61,18 @@ To get the service up and running, follow the steps below:
    After creating the superuser, access the admin panel and login with your admin credentials with the
    link https://localhost:8000/api/v1/admin/
 
-### Admin Login Screen
+   ### Admin Login Screen
 
-![img.png](img.png)
+   ![img.png](img.png)
 
-### Admin Dashboard Screens
+   ### Admin Dashboard Screens
 
-#### Light Mode
+   #### Light Mode
 
-![pic2.png](static%2Fpic2.png)
+   ![pic2.png](static%2Fpic2.png)
 
-#### Dark Mode
+   #### Dark Mode
 
-![pic3.png](static%2Fpic3.png)
+   ![pic3.png](static%2Fpic3.png)
+
+7) Add your data and then access the postman docs and make requests to the API.
