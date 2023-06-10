@@ -28,7 +28,7 @@ To get the service up and running, follow the steps below:
 
 1) Clone the project by using the command below in your terminal
     ```
-    https://github.com/S13G/Commista.git
+    git clone https://github.com/S13G/Commista.git
     ```
 2) Change directory into the cloned repository
     ```
@@ -63,7 +63,7 @@ To get the service up and running, follow the steps below:
 
    ### Admin Login Screen
 
-   ![img.png](img.png)
+   ![img.png](static/img.png)
 
    ### Admin Dashboard Screens
 
