@@ -27,7 +27,7 @@ SECRET_KEY = config("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["commista.osc-fr1.scalingo.io", "127.0.0.1"]
+ALLOWED_HOSTS = ["commista.osc-fr1.scalingo.io", "127.0.0.1", "https://commista.onrender.com"]
 
 # Application definition
 
@@ -113,6 +113,7 @@ AUTH_USER_MODEL = "core.User"
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
+    "https://commista.onrender.com",
 ]
 
 CSRF_COOKIE_SECURE = True
