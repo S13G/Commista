@@ -98,6 +98,10 @@ class RegisterSerializer(serializers.Serializer):
         first_name = attrs.get('first_name')
         last_name = attrs.get('last_name')
 
+        existing_email = User.objects.filter(email=email)
+        if existing_email.exists():
+            raise serializers.ValidationError({"message": "Email already registered", "status": "failed"})
+
         try:
             validate_email(email)
         except ValidationError:
