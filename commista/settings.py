@@ -27,7 +27,7 @@ SECRET_KEY = config("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["commista.osc-fr1.scalingo.io", "127.0.0.1", "https://commista.onrender.com"]
+ALLOWED_HOSTS = ["commista.osc-fr1.scalingo.io", "127.0.0.1", "commista.onrender.com"]
 
 # Application definition
 
