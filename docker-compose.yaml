@@ -1,0 +1,13 @@
+# version of docker-compose to use
+version: "3"
+
+services:
+  web:
+    build: .
+    #  maps port on the local machine to port on docker image
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/commista

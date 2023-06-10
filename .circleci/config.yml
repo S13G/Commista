@@ -33,9 +33,36 @@ jobs:
       - run:
           name: Configuring environment variables
           command: |
-
-
+            echo "SECRET_KEY=${SECRET_KEY}" >> .env
+            echo "DATABASE_NAME=${DATABASE_NAME}" >> .env
+            echo "DATABASE_HOST=${DATABASE_HOST}" >> .env
+            echo "DATABASE_USER=${DATABASE_USER}" >> .env
+            echo "DATABASE_PASSWORD=${DATABASE_PASSWORD}" >> .env
+            echo "CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}" >> .env
+            echo "CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}" >> .env
+            echo "CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}" >> .env
+            echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> .env
+            echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> .env
+            echo "EMAIL_HOST_USER=${EMAIL_HOST_USER}" >> .env
+            echo "EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}" >> .env
+            echo "FLUTTERWAVE_SECRET_KEY=${FLUTTERWAVE_SECRET_KEY}" >> .env
+            echo "FLUTTERWAVE_PUBLIC_KEY=${FLUTTERWAVE_PUBLIC_KEY}" >> .env
+            echo "FW_VERIFY_LINK=${FW_VERIFY_LINK}" >> .env
+            echo "ORDER_SHIPPING_MONTHS=${ORDER_SHIPPING_MONTHS}" >> .env
+            echo "DEFAULT_PRODUCT_SHIPPING_DAYS=${DEFAULT_PRODUCT_SHIPPING_DAYS}" >> .env
+            echo "DEFAULT_PRODUCT_SHIPPING_FEE=${DEFAULT_PRODUCT_SHIPPING_FEE}" >> .env
+            echo "DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}" >> .env
+      - run:
+          name: Build and start Docker compose services
+          command: |
+            docker-compose build
+            docker-compose up -d
+      - run:
+          name: Stop and remove docker compose services
+          command: |
+            docker-compose down
 workflows:
-  commista-workflow:
+  run-build-test:
     jobs:
-      - commista
+      - build_and_test
+      - build_and_test_docker
