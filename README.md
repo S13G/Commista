@@ -28,7 +28,7 @@ To get the service up and running, follow the steps below:
 
 1) Clone the project by using the command below in your terminal
     ```
-    git clone https://github.com/S13G/Commista.git
+    git clone git@github.com:S13G/Commista.git
     ```
 2) Change directory into the cloned repository
     ```
@@ -59,7 +59,7 @@ To get the service up and running, follow the steps below:
    python manage.py createsuperuser
    ```
    After creating the superuser, access the admin panel and login with your admin credentials with the
-   link https://localhost:8000/api/v1/admin/
+   link https://localhost:8000/admin/
 
    ### Admin Login Screen
 
