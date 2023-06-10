@@ -10,7 +10,7 @@ cloudinary==1.32.0
 colorama==0.4.6
 creategitignore==0.2.1
 dj-database-url==2.0.0
-Django==4.1.7
+Django==4.1.9
 django-autoslug==1.9.8
 django-cloudinary-storage==0.3.0
 django-compat==1.0.15
