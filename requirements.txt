@@ -57,7 +57,7 @@ python-decouple==3.8
 python-flutterwave==0.8.10
 pytz==2022.7.1
 PyYAML==6.0
-requests==2.28.2
+requests==2.31.0
 rsa==4.9
 six==1.16.0
 soupsieve==2.4
