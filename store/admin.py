@@ -8,14 +8,15 @@ from django.utils.html import format_html, mark_safe
 from store.forms import ProductAdminForm
 from store.models import *
 
+
 # Register your models here.
-admin.site.register((Size,))
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("title", "gender", "products_count",)
     list_filter = ("title", "gender",)
+    list_per_page = 10
     ordering = ("title", "gender",)
 
     @admin.display(ordering="products_count")
@@ -35,6 +36,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class ColourAdmin(admin.ModelAdmin):
     list_display = ("name", "hex_code",)
     list_filter = ("name", "hex_code",)
+    list_per_page = 15
     ordering = ("name",)
     search_fields = ("name", "hex_code",)
 
@@ -112,7 +114,7 @@ class ProductAdmin(admin.ModelAdmin):
 class FavoriteProductAdmin(admin.ModelAdmin):
     list_display = ("customer", "product",)
     list_filter = ("product__category",)
-    list_per_page = 30
+    list_per_page = 20
     list_select_related = ("product",)
     ordering = ("customer", "product",)
     search_fields = ("customer__full_name", "product__name",)
@@ -121,6 +123,7 @@ class FavoriteProductAdmin(admin.ModelAdmin):
 @admin.register(SliderImage)
 class SliderImageAdmin(admin.ModelAdmin):
     list_display = ('image_id',)
+    list_per_page = 10
 
     @staticmethod
     def image_id(obj: SliderImage):
@@ -138,7 +141,7 @@ class ProductReviewAdmin(admin.ModelAdmin):
     inlines = (ProductReviewImageAdmin,)
     list_display = ("product", "customer", "ratings",)
     list_filter = ("product__title", "product__category",)
-    list_per_page = 30
+    list_per_page = 20
     list_select_related = ("product__category",)
     ordering = ("customer", "ratings",)
     readonly_fields = ("product_review_images",)
@@ -146,7 +149,7 @@ class ProductReviewAdmin(admin.ModelAdmin):
 
     @staticmethod
     def product_review_images(obj: ProductReview):
-        product_review_images = obj.product_review_images.all()
+        product_review_images = obj.images.all()
         html = ''
         for product_review in product_review_images:
             html += '<img src="{url}" width="{width}" height="{height}" />'.format(
@@ -202,3 +205,16 @@ class AddressAdmin(admin.ModelAdmin):
     list_select_related = ["customer"]
     ordering = ("country", "city", "first_name")
     search_fields = ("first_name__istartswith", "last_name__istartswith", "country")
+
+
+@admin.register(Size)
+class SizeAdmin(admin.ModelAdmin):
+    list_display = ("title",)
+    list_per_page = 10
+
+
+@admin.register(Colour)
+class ColourAdmin(admin.ModelAdmin):
+    list_display = ("name", "hex_code",)
+    list_per_page = 10
+    search_fields = ("name__istartswith",)

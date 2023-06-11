@@ -26,6 +26,7 @@ class CustomUserAdmin(UserAdmin):
         "is_staff",
         "is_active",
     )
+    list_per_page = 20
     fieldsets = (
         (
             "Personal Information",
@@ -76,6 +77,7 @@ class ProfileAdmin(admin.ModelAdmin):
         "gender",
         "phone_number",
     )
+    list_per_page = 20
     ordering = ("user__email",)
     search_fields = ("email_address",)
 
