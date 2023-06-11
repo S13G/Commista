@@ -9,9 +9,6 @@ RUN apk add --no-cache postgresql-dev gcc musl-dev
 # Create a group and add a user to the group
 RUN addgroup systemUserGroup && adduser -D -G systemUserGroup developer
 
-# Grant permissions to user to avoid errors from command needing user access
-RUN chown -R developer:systemUserGroup /commista
-
 # Grant executable permission to the group for the workdir
 RUN chmod g+s /commista
 
@@ -43,10 +40,13 @@ ENV ADMIN_PASSWORD=${ADMIN_EMAIL}
 COPY ./requirements.txt requirements.txt
 
 # Install the dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 # Copy the Django project into the image
 COPY . .
+
+# Change ownership of the staticfiles directory to the user
+RUN chown -R developer:systemUserGroup /commista/staticfiles
 
 # collectstatic without interactive input, perform migrations and create a superuser automatically
 CMD python3 manage.py collectstatic --no-input --settings=$DJANGO_SETTINGS_MODULE && \
