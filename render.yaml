@@ -1,4 +1,6 @@
 services:
-  - name: commista
+  - type: web
+    name: commista
     buildCommand: "./build.sh"
+    startCommand: gunicorn commista.wsgi:application
 
