@@ -44,6 +44,12 @@ class User(AbstractUser):
     def full_name(self):
         return self.get_full_name()
 
+    @property
+    def avatar(self):
+        if self.profile and self.profile._avatar:
+            return self.profile.avatar
+        return None
+
     def save(self, *args, **kwargs):
         if self.email_changed and not self.is_modified:
             self.is_modified = timezone.now()
