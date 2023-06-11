@@ -33,6 +33,8 @@ ENV ORDER_SHIPPING_MONTHS=${ORDER_SHIPPING_MONTHS}
 ENV DEFAULT_PRODUCT_SHIPPING_DAYS=${DEFAULT_PRODUCT_SHIPPING_DAYS}
 ENV DEFAULT_PRODUCT_SHIPPING_FEE=${DEFAULT_PRODUCT_SHIPPING_FEE}
 ENV DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+ENV ADMIN_EMAIL=${ADMIN_EMAIL}
+ENV ADMIN_PASSWORD=${ADMIN_EMAIL}
 
 # Copy the requirements.txt file into the workdir
 COPY ./requirements.txt requirements.txt
@@ -43,5 +45,8 @@ RUN pip3 install -r requirements.txt
 # Copy the Django project into the image
 COPY . .
 
-# Run the Django development server
-CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+# collectstatic without interactive input, perform migrations and create a superuser automatically
+CMD python3 manage.py collectstatic --no-input --settings=$DJANGO_SETTINGS_MODULE && \
+    python3 manage.py migrate --settings=$DJANGO_SETTINGS_MODULE && \
+    python3 manage.py createsu --settings=$DJANGO_SETTINGS_MODULE && \
+    python3 manage.py runserver 0.0.0.0:8000

@@ -49,6 +49,9 @@ jobs:
             echo "DEFAULT_PRODUCT_SHIPPING_DAYS=${DEFAULT_PRODUCT_SHIPPING_DAYS}" >> .env
             echo "DEFAULT_PRODUCT_SHIPPING_FEE=${DEFAULT_PRODUCT_SHIPPING_FEE}" >> .env
             echo "DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}" >> .env
+            echo "ADMIN_EMAIL=${ADMIN_EMAIL}" >> .env
+            echo "ADMIN_PASSWORD=${ADMIN_PASSWORD}" >> .env
+
       - run:
           name: Build and start Docker compose services
           command: |

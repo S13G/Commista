@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: commista
-    runtime: python
-    buildCommand: "./build.sh"
-    startCommand: gunicorn commista.wsgi:application
-

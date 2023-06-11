@@ -21,7 +21,6 @@ a single block in the template.
 .navbar-inverse .brand a {
     color: #999999;
 }
-
 .navbar-inverse .brand:hover a {
     color: white;
     text-decoration: none;

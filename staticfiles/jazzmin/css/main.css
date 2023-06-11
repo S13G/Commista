@@ -836,7 +836,6 @@ a.inline-deletelink {
     border: 1px solid #dc3545;
     transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
 }
-
 /* end stacked inlines */
 
 /* Support for django-mptt */
@@ -847,7 +846,6 @@ a.inline-deletelink {
 #result_list .field-tree_actions > div {
     margin-top: 0;
 }
-
 /* End support for django-mptt */
 
 /* modal tweaks */
@@ -873,7 +871,6 @@ iframe.related-iframe {
     -ms-filter: blur(1px);
     filter: blur(1px);
 }
-
 /* end modal tweaks */
 
 .control-sidebar {
@@ -892,7 +889,6 @@ body.jazzmin-login-page {
     -ms-flex-pack: center;
     justify-content: center;
 }
-
 .callout {
     color: black;
 }
@@ -906,26 +902,21 @@ body.jazzmin-login-page {
     /* May inherit scroll, so we need to explicitly hide */
     overflow-x: hidden;
 }
-
 /* calculate height to fit content, we don't to enable scrolling if the content fits */
 .layout-fixed #jazzy-sidebar .sidebar {
     height: auto !important;
 }
-
 /* Hide scrollbar */
 .layout-fixed #jazzy-sidebar {
     scrollbar-width: none;
 }
-
 .layout-fixed #jazzy-sidebar::-webkit-scrollbar {
     width: 0;
 }
-
 /* nav-item will overflow container in width if scrollbar is visible */
 #jazzy-sidebar .nav-sidebar > .nav-item {
     width: 100%;
 }
-
 /* tweeks for django-filer*/
 .navigator-top-nav + #content-main {
     float: left;
