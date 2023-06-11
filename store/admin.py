@@ -9,9 +9,6 @@ from store.forms import ProductAdminForm
 from store.models import *
 
 
-# Register your models here.
-
-
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("title", "gender", "products_count",)
@@ -211,10 +208,3 @@ class AddressAdmin(admin.ModelAdmin):
 class SizeAdmin(admin.ModelAdmin):
     list_display = ("title",)
     list_per_page = 10
-
-
-@admin.register(Colour)
-class ColourAdmin(admin.ModelAdmin):
-    list_display = ("name", "hex_code",)
-    list_per_page = 10
-    search_fields = ("name__istartswith",)
