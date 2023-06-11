@@ -9,8 +9,11 @@ RUN apk add --no-cache postgresql-dev gcc musl-dev
 # Create a group and add a user to the group
 RUN addgroup systemUserGroup && adduser -D -G systemUserGroup developer
 
-# Grant executable permission to the group
-RUN chmod g+x /commista
+# Grant permissions to user to avoid errors from command needing user access
+RUN chown -R developer:systemUserGroup /commista
+
+# Grant executable permission to the group for the workdir
+RUN chmod g+s /commista
 
 # Switch to the user
 USER developer
@@ -40,7 +43,7 @@ ENV ADMIN_PASSWORD=${ADMIN_EMAIL}
 COPY ./requirements.txt requirements.txt
 
 # Install the dependencies
-RUN pip3 install -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the Django project into the image
 COPY . .

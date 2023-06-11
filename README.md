@@ -80,3 +80,15 @@ To get the service up and running, follow the steps below:
    ![pic3.png](static%2Fpic3.png)
 
 7) Add your data and then access the postman docs and make requests to the API.
+
+## Articles that helped
+
+### A Deep Dive into Containerization, CI/CD, and AWS for Django Rest Application
+
+### Part 1
+
+https://matthewakinola.hashnode.dev/a-deep-dive-into-containerization-cicd-and-aws-for-django-rest-application-part-1
+
+### Part 2
+
+https://matthewakinola.hashnode.dev/a-deep-dive-into-containerization-cicd-and-aws-for-django-rest-applications-part-2
