@@ -45,11 +45,7 @@ RUN pip3 install -r requirements.txt
 # Copy the Django project into the image
 COPY . .
 
-# Change ownership of the staticfiles directory to the user
-RUN chown -R developer:systemUserGroup /commista/staticfiles
-
 # collectstatic without interactive input, perform migrations and create a superuser automatically
-CMD python3 manage.py collectstatic --no-input --settings=$DJANGO_SETTINGS_MODULE && \
-    python3 manage.py migrate --settings=$DJANGO_SETTINGS_MODULE && \
+CMD python3 manage.py migrate --settings=$DJANGO_SETTINGS_MODULE && \
     python3 manage.py createsu --settings=$DJANGO_SETTINGS_MODULE && \
     python3 manage.py runserver 0.0.0.0:8000
