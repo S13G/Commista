@@ -12,6 +12,8 @@ class Command(BaseCommand):
         if not User.objects.filter(email=config('ADMIN_EMAIL')).exists():
             User.objects.create_superuser(
                     email=config('ADMIN_EMAIL'),
+                    first_name='John',
+                    last_name='Doe',
                     password=config('ADMIN_PASSWORD')
             )
         print('Superuser has been created.')
