@@ -70,7 +70,7 @@ class ColourInventoryInline(admin.TabularInline):
 class ProductAdmin(admin.ModelAdmin):
     inlines = (ProductImageAdmin, SizeInventoryInline, ColourInventoryInline)
     form = ProductAdminForm
-    list_display = ("title", "category", "price", "percentage_off", "discount_price",
+    list_display = ("product_title", "category", "price", "percentage_off", "discount_price",
                     "average_ratings", "inventory", "inventory_status",)
     list_filter = ("category", "condition", "percentage_off", InventoryFilter)
     list_per_page = 30
@@ -105,6 +105,13 @@ class ProductAdmin(admin.ModelAdmin):
                     height=200,
             )
         return mark_safe(html)
+
+    @staticmethod
+    def product_title(obj: Product):
+        max_length = 60  # Set the desired maximum length for the title
+        if len(obj.title) > max_length:
+            return obj.title[:max_length] + '...'
+        return obj.title
 
 
 @admin.register(FavoriteProduct)
