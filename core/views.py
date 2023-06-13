@@ -210,7 +210,7 @@ class LogoutView(TokenBlacklistView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-class ListUpdateProfileView(GenericAPIView):
+class RetrieveUpdateProfileView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = ProfileSerializer
     throttle_classes = [UserRateThrottle]

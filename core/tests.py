@@ -170,7 +170,7 @@ class AuthenticationTestCase(APITestCase):
 
     def test_get_user_profile(self):
         self._authenticate_user()
-        response = self.client.get(reverse_lazy("list_update_profile"))
+        response = self.client.get(reverse_lazy("retrieve_update_profile"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_update_user_profile(self):
@@ -181,5 +181,5 @@ class AuthenticationTestCase(APITestCase):
             "birthday": "2023-05-12",
             "phone_number": "+123131331321"
         }
-        response = self.client.patch(reverse_lazy("list_update_profile"), data=updated_data)
+        response = self.client.patch(reverse_lazy("retrieve_update_profile"), data=updated_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
