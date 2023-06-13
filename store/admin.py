@@ -143,13 +143,20 @@ class ProductReviewImageAdmin(admin.TabularInline):
 @admin.register(ProductReview)
 class ProductReviewAdmin(admin.ModelAdmin):
     inlines = (ProductReviewImageAdmin,)
-    list_display = ("product", "customer", "ratings",)
+    list_display = ("product_title", "customer", "ratings",)
     list_filter = ("product__title", "product__category",)
     list_per_page = 20
     list_select_related = ("product__category",)
     ordering = ("customer", "ratings",)
     readonly_fields = ("product_review_images",)
     search_fields = ("product__title",)
+
+    @staticmethod
+    def product_title(obj: ProductReview):
+        max_length = 60  # Set the desired maximum length for the title
+        if len(obj.product.title) > max_length:
+            return obj.product.title[:max_length] + '...'
+        return obj.product.title
 
     @staticmethod
     def product_review_images(obj: ProductReview):
