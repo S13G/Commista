@@ -19,10 +19,7 @@ from core.validators import validate_phone_number
 from store.choices import (CONDITION_CHOICES, GENDER_CHOICES, NOTIFICATION_CHOICES, PAYMENT_PENDING, PAYMENT_STATUS,
                            RATING_CHOICES, SHIPPING_STATUS_CHOICES, SHIPPING_STATUS_PENDING)
 from store.managers import AddressManager, ColourInventoryManager, FavoriteProductManager, OrderItemManager, \
-    OrderManager, \
-    ProductManager, \
-    ProductReviewManager, \
-    SizeInventoryManager
+    OrderManager, ProductManager, ProductReviewManager, SizeInventoryManager
 from store.validators import validate_image_size
 
 # Create your models here.
@@ -105,8 +102,8 @@ class Product(BaseModel):
 
 
 class ColourInventory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_inventory")
-    colour = models.ForeignKey(Colour, on_delete=models.CASCADE, related_name="product_color")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_inventory", blank=True)
+    colour = models.ForeignKey(Colour, on_delete=models.CASCADE, related_name="product_color", blank=True)
     quantity = models.IntegerField(
             default=0, blank=True, help_text=_("The quantity of this color variant in inventory.")
     )
@@ -125,8 +122,8 @@ class ColourInventory(models.Model):
 
 
 class SizeInventory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_inventory")
-    size = models.ForeignKey(Size, on_delete=models.CASCADE, related_name="product_size")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_inventory", blank=True)
+    size = models.ForeignKey(Size, on_delete=models.CASCADE, related_name="product_size", blank=True)
     quantity = models.IntegerField(
             default=0, blank=True, help_text=_("The quantity of this size variant in inventory.")
     )
@@ -309,7 +306,7 @@ class OrderItem(BaseModel):
         if float(self.product.discount_price) > 0:
             return (self.quantity * (self.product.discount_price + extra_price)) + self.product.shipping_fee
         return (self.quantity * (
-                    self.product.price + self.product.shipping_fee + extra_price)) + self.product.shipping_fee
+                self.product.price + self.product.shipping_fee + extra_price)) + self.product.shipping_fee
 
 
 class Address(BaseModel):
