@@ -102,8 +102,8 @@ class Product(BaseModel):
 
 
 class ColourInventory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_inventory", blank=True)
-    colour = models.ForeignKey(Colour, on_delete=models.CASCADE, related_name="product_color", blank=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="color_inventory")
+    colour = models.ForeignKey(Colour, on_delete=models.CASCADE, related_name="product_color")
     quantity = models.IntegerField(
             default=0, blank=True, help_text=_("The quantity of this color variant in inventory.")
     )
@@ -122,8 +122,8 @@ class ColourInventory(models.Model):
 
 
 class SizeInventory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_inventory", blank=True)
-    size = models.ForeignKey(Size, on_delete=models.CASCADE, related_name="product_size", blank=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="size_inventory")
+    size = models.ForeignKey(Size, on_delete=models.CASCADE, related_name="product_size")
     quantity = models.IntegerField(
             default=0, blank=True, help_text=_("The quantity of this size variant in inventory.")
     )
