@@ -495,8 +495,6 @@ class VerifyEmailView(GenericAPIView):
                             status=status.HTTP_200_OK)
 
         user.is_verified = True
-        otp.delete()
-        if not user.email_changed:
-            Util.email_verified(user)
+        user.otp.all().delete()
         user.save()
         return Response({"message": "Account verified successfully", "status": "success"}, status=status.HTTP_200_OK)
