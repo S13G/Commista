@@ -4,8 +4,7 @@ orbs:
 
 jobs:
   build_and_test:
-    executor:
-      python/default
+    executor: python/default
     docker:
       - image: cimg/python:3.10.2
 
@@ -51,6 +50,8 @@ jobs:
             echo "DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}" >> .env
             echo "ADMIN_EMAIL=${ADMIN_EMAIL}" >> .env
             echo "ADMIN_PASSWORD=${ADMIN_PASSWORD}" >> .env
+            echo "TREBLLE_API_KEY=${TREBLLE_API_KEY}" >> .env
+            echo "TREBLLE_PROJECT_ID=${TREBLLE_PROJECT_ID}" >> .env
 
       - run:
           name: Build and start Docker compose services
