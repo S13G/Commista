@@ -63,6 +63,7 @@ six==1.16.0
 soupsieve==2.4
 sqlparse==0.4.4
 tomli==2.0.1
+treblle==0.14
 typing_extensions==4.5.0
 uritemplate==4.1.1
 urllib3==1.26.15
