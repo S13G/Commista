@@ -58,6 +58,7 @@ THIRD_PARTY_APPS = [
     "rest_framework.authtoken",  # for testing purposes
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "treblle",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS
@@ -128,6 +129,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
+    "treblle.middleware.TreblleMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -376,3 +378,9 @@ FW_KEY = config("FLUTTERWAVE_SECRET_KEY")
 FW_PUBLIC_KEY = config("FLUTTERWAVE_PUBLIC_KEY")
 
 FW_VERIFY_LINK = config("FW_VERIFY_LINK")
+
+# Treblle variables
+TREBLLE_INFO = {
+    'api_key': config('TREBLLE_API_KEY'),
+    'project_id': config('TREBLLE_PROJECT_ID')
+}
