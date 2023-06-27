@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.contrib.auth import authenticate
 from django.utils import timezone
@@ -480,7 +480,7 @@ class VerifyEmailView(GenericAPIView):
             return Response({"message": "Account not found", "status": "failed"}, status=status.HTTP_404_NOT_FOUND)
 
         # Delete unverified accounts older than 15 minutes
-        expiration_time = datetime.now() - timedelta(minutes=15)
+        expiration_time = timezone.now() - timedelta(minutes=15)
         if user.is_verified is False and user.date_joined < expiration_time:
             user.delete()
             return Response({"message": "You didn't verify before 15 minutes", "status": "failed"},
