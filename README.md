@@ -15,7 +15,7 @@ https://commista.onrender.com/
 
 ## Commista Postman Documentation
 
-https://bit.ly/43R3adH
+https://bit.ly/commista
 
 ## Technologies used
 
